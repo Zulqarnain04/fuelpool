@@ -1,3 +1,30 @@
 spring:
   application:
     name: fuelpool-backend
+
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/fuelpool}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
+
+jwt:
+  secret: ${JWT_SECRET:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855}
+  expiration: 86400000
+
+ollama:
+  base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+  model: llama3.2:3b
+  timeout: 30000
+
+server:
+  port: 8080

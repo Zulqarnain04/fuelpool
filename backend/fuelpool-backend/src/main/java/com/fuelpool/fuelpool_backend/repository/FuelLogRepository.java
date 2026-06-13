@@ -1,4 +1,28 @@
 package com.fuelpool.fuelpool_backend.repository;
 
-public interface FuelLogRepository {
+import com.fuelpool.fuelpool_backend.model.FuelLog;
+import com.fuelpool.fuelpool_backend.model.Vehicle;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+@Repository
+public interface FuelLogRepository extends JpaRepository<FuelLog, Long> {
+    Page<FuelLog> findByUserIdOrderByLogDateDesc(Long userId, Pageable pageable);
+    Optional<FuelLog> findTopByUserIdOrderByLogDateDesc(Long userId);
+    Optional<FuelLog> findTopByVehicleIdOrderByLogDateDesc(Long vehicleId);
+
+    @Query("SELECT SUM(f.litresFilled) FROM FuelLog f WHERE f.user.id = :userId AND f.fuelType = 'RON95_BUDI95' AND f.logDate >= :monthStart")
+    Double sumBudi95LitresThisMonth(Long userId, LocalDateTime monthStart);
+
+    List<FuelLog> findTop5ByVehicleIdAndIsFullTankTrueOrderByLogDateDesc(Long vehicleId);
+
+    @Query("SELECT SUM(f.totalCost) FROM FuelLog f WHERE f.user.id = :userId AND f.logDate >= :from AND f.logDate < :to")
+    Double sumTotalCostBetween(Long userId, LocalDateTime from, LocalDateTime to);
 }

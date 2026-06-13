@@ -1,1 +1,8 @@
-[]
+[
+  { "make": "Perodua", "model": "Myvi",  "year": 2022, "tankCapacity": 40, "defaultEfficiency": 16, "fuelType": "RON95_MARKET" },
+  { "make": "Perodua", "model": "Axia",  "year": 2023, "tankCapacity": 35, "defaultEfficiency": 17, "fuelType": "RON95_MARKET" },
+  { "make": "Proton",  "model": "Saga",  "year": 2021, "tankCapacity": 40, "defaultEfficiency": 15, "fuelType": "RON95_MARKET" },
+  { "make": "Proton",  "model": "X50",   "year": 2022, "tankCapacity": 49, "defaultEfficiency": 13, "fuelType": "RON97" },
+  { "make": "Honda",   "model": "City",  "year": 2021, "tankCapacity": 47, "defaultEfficiency": 14, "fuelType": "RON95_MARKET" },
+  { "make": "Toyota",  "model": "Vios",  "year": 2020, "tankCapacity": 42, "defaultEfficiency": 14, "fuelType": "RON95_MARKET" }
+]
