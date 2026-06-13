@@ -15,6 +15,7 @@ import java.util.Optional;
 public interface EcoWeeklyStatsRepository extends JpaRepository<EcoWeeklyStats, Long> {
     Optional<EcoWeeklyStats> findByUserIdAndWeekStartDate(Long userId, LocalDate weekStartDate);
     List<EcoWeeklyStats> findByWeekStartDateOrderByEcoScoreDesc(LocalDate weekStartDate);
+    List<EcoWeeklyStats> findByUserIdAndWeekStartDateBetween(Long userId, LocalDate from, LocalDate to);
 
     @Query("SELECT e FROM EcoWeeklyStats e WHERE e.user.id = :userId ORDER BY e.weekStartDate DESC")
     List<EcoWeeklyStats> findRecentByUserId(Long userId);

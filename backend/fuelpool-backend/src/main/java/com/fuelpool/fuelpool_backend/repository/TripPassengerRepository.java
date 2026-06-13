@@ -9,11 +9,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface TripPassengerRepository extends JpaRepository<TripPassenger, Long> {
     List<TripPassenger> findByPassengerIdAndTripDateBetween(Long passengerId, LocalDateTime from, LocalDateTime to);
     List<TripPassenger> findByDriverIdAndTripDateBetween(Long driverId, LocalDateTime from, LocalDateTime to);
+
+    Optional<TripPassenger> findByRideIdAndPassengerId(Long rideId, Long passengerId);
+    Optional<TripPassenger> findByRideIdAndDriverId(Long rideId, Long driverId);
 
     @Query("SELECT COUNT(t) FROM TripPassenger t WHERE t.passenger.id = :userId AND t.tripDate >= :from AND t.tripDate < :to")
     long countCarpoolTrips(Long userId, LocalDateTime from, LocalDateTime to);

@@ -6,6 +6,7 @@ import com.fuelpool.fuelpool_backend.model.Ride;
 import com.fuelpool.fuelpool_backend.model.User;
 import com.fuelpool.fuelpool_backend.service.carpool.MatchingService;
 import com.fuelpool.fuelpool_backend.service.carpool.RideService;
+import com.fuelpool.fuelpool_backend.service.carpool.RouteService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/rides")
@@ -23,6 +25,28 @@ public class RideController {
 
     private final RideService rideService;
     private final MatchingService matchingService;
+    private final RouteService routeService;
+
+    @GetMapping
+    public ResponseEntity<List<Ride>> list(
+            @RequestParam(defaultValue = "OPEN") String status,
+            @RequestParam(required = false) Double lat,
+            @RequestParam(required = false) Double lng,
+            @RequestParam(defaultValue = "5000") double radius) {
+
+        Ride.RideStatus s = Ride.RideStatus.valueOf(status);
+        List<Ride> rides = rideService.listByStatus(s);
+
+        if (lat != null && lng != null) {
+            rides = rides.stream()
+                .filter(r -> routeService.haversineMetres(
+                    lat, lng,
+                    r.getOriginLat().doubleValue(),
+                    r.getOriginLng().doubleValue()) <= radius)
+                .toList();
+        }
+        return ResponseEntity.ok(rides);
+    }
 
     @PostMapping
     public ResponseEntity<Ride> post(@AuthenticationPrincipal User user,
@@ -59,5 +83,15 @@ public class RideController {
     @PutMapping("/{id}/cancel")
     public ResponseEntity<Ride> cancel(@AuthenticationPrincipal User user, @PathVariable Long id) {
         return ResponseEntity.ok(rideService.cancelRide(id, user));
+    }
+
+    @PostMapping("/{id}/rate")
+    public ResponseEntity<Void> rate(@AuthenticationPrincipal User user,
+                                     @PathVariable Long id,
+                                     @RequestBody Map<String, Object> body) {
+        int rating        = (Integer) body.get("rating");
+        Long targetUserId = ((Number) body.get("targetUserId")).longValue();
+        rideService.rateRide(id, user, targetUserId, rating);
+        return ResponseEntity.ok().build();
     }
 }

@@ -18,8 +18,12 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -150,6 +154,39 @@ public class FuelLogService {
 
     public Page<FuelLog> getLogs(User user, Pageable pageable) {
         return fuelLogRepository.findByUserIdOrderByLogDateDesc(user.getId(), pageable);
+    }
+
+    public FuelLog findById(Long id, User user) {
+        FuelLog log = fuelLogRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("FuelLog", id));
+        if (!log.getUser().getId().equals(user.getId()))
+            throw new BusinessException("Not your log");
+        return log;
+    }
+
+    public Map<String, Object> getStats(User user) {
+        List<FuelLog> logs = fuelLogRepository.findByUserIdOrderByLogDateDesc(user.getId());
+
+        double totalSpend  = logs.stream().mapToDouble(l -> l.getTotalCost().doubleValue()).sum();
+        double totalLitres = logs.stream().mapToDouble(l -> l.getLitresFilled().doubleValue()).sum();
+
+        java.util.OptionalDouble avgEff = logs.stream()
+            .filter(l -> l.getEfficiencyThisFill() != null)
+            .mapToDouble(l -> l.getEfficiencyThisFill().doubleValue())
+            .average();
+
+        Map<String, Double> monthly = logs.stream()
+            .collect(Collectors.groupingBy(
+                l -> l.getLogDate().format(DateTimeFormatter.ofPattern("yyyy-MM")),
+                Collectors.summingDouble(l -> l.getTotalCost().doubleValue())
+            ));
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("totalSpend",       Math.round(totalSpend * 100.0) / 100.0);
+        result.put("totalLitres",      Math.round(totalLitres * 100.0) / 100.0);
+        result.put("avgEfficiency",    avgEff.isPresent() ? Math.round(avgEff.getAsDouble() * 10.0) / 10.0 : null);
+        result.put("monthlyBreakdown", monthly);
+        return result;
     }
 
     public void delete(Long id, User user) {

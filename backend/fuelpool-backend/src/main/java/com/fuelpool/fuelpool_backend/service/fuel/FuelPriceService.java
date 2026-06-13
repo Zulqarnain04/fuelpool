@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
@@ -84,7 +85,9 @@ public class FuelPriceService implements CommandLineRunner {
     }
 
     public List<FuelPrice> getLastNPrices(int n) {
-        return fuelPriceRepository.findTop6ByOrderByPriceDateDesc();
+        return fuelPriceRepository.findByPriceDateBeforeOrderByPriceDateDesc(
+            LocalDate.now().plusDays(1), PageRequest.of(0, n)
+        ).getContent();
     }
 
     public BigDecimal getPriceForFuelType(FuelPrice fp, Vehicle.FuelType fuelType) {

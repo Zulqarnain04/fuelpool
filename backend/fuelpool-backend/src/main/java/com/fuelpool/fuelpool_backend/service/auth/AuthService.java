@@ -7,6 +7,7 @@ import com.fuelpool.fuelpool_backend.exception.BusinessException;
 import com.fuelpool.fuelpool_backend.model.User;
 import com.fuelpool.fuelpool_backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -48,10 +49,10 @@ public class AuthService implements UserDetailsService {
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new UsernameNotFoundException("Invalid email or password"));
+                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new BusinessException("Invalid email or password");
+            throw new BadCredentialsException("Invalid email or password");
         }
 
         String token = jwtService.generateToken(user);

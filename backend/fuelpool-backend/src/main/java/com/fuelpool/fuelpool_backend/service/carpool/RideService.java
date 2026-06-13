@@ -15,6 +15,7 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +23,7 @@ public class RideService {
 
     private final RideRepository rideRepository;
     private final VehicleRepository vehicleRepository;
+    private final UserRepository userRepository;
     private final RideRequestRepository rideRequestRepository;
     private final TripPassengerRepository tripPassengerRepository;
     private final EcoWeeklyStatsRepository ecoWeeklyStatsRepository;
@@ -150,6 +152,34 @@ public class RideService {
     public Ride findById(Long id) {
         return rideRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Ride", id));
+    }
+
+    public List<Ride> listByStatus(Ride.RideStatus status) {
+        return rideRepository.findByStatus(status);
+    }
+
+    public void rateRide(Long rideId, User rater, Long targetUserId, int rating) {
+        TripPassenger trip = tripPassengerRepository.findByRideIdAndPassengerId(rideId, targetUserId)
+                .or(() -> tripPassengerRepository.findByRideIdAndDriverId(rideId, targetUserId))
+                .orElseThrow(() -> new ResourceNotFoundException("TripPassenger", rideId));
+
+        if (trip.getDriver().getId().equals(rater.getId())) {
+            trip.setPassengerRatingGiven(rating);
+            User p = trip.getPassenger();
+            p.setPassengerRating(rollingAvg(p.getPassengerRating(), rating));
+            userRepository.save(p);
+        } else {
+            trip.setDriverRating(rating);
+            User d = trip.getDriver();
+            d.setDriverRating(rollingAvg(d.getDriverRating(), rating));
+            userRepository.save(d);
+        }
+        tripPassengerRepository.save(trip);
+    }
+
+    private BigDecimal rollingAvg(BigDecimal current, int newVal) {
+        double v = current.doubleValue() * 0.8 + newVal * 0.2;
+        return BigDecimal.valueOf(Math.round(v * 100.0) / 100.0);
     }
 
     private Ride findAndVerifyDriver(Long rideId, User driver) {

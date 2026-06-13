@@ -19,6 +19,8 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
             LocalDateTime to
     );
 
+    List<Ride> findByStatus(Ride.RideStatus status);
+
     @Query("SELECT COUNT(r) > 0 FROM Ride r WHERE r.driver.id = :driverId AND r.departureTime >= :dayStart AND r.departureTime < :dayEnd AND r.status != 'CANCELLED'")
     boolean existsRideByDriverToday(Long driverId, LocalDateTime dayStart, LocalDateTime dayEnd);
 

@@ -16,6 +16,7 @@ import java.util.Optional;
 @Repository
 public interface FuelLogRepository extends JpaRepository<FuelLog, Long> {
     Page<FuelLog> findByUserIdOrderByLogDateDesc(Long userId, Pageable pageable);
+    List<FuelLog> findByUserIdOrderByLogDateDesc(Long userId);
     Optional<FuelLog> findTopByUserIdOrderByLogDateDesc(Long userId);
     Optional<FuelLog> findTopByVehicleIdOrderByLogDateDesc(Long vehicleId);
 
@@ -23,6 +24,7 @@ public interface FuelLogRepository extends JpaRepository<FuelLog, Long> {
     Double sumBudi95LitresThisMonth(Long userId, LocalDateTime monthStart);
 
     List<FuelLog> findTop5ByVehicleIdAndIsFullTankTrueOrderByLogDateDesc(Long vehicleId);
+    List<FuelLog> findTop5ByUserIdAndIsFullTankTrueAndEfficiencyThisFillIsNotNullOrderByLogDateDesc(Long userId);
 
     @Query("SELECT SUM(f.totalCost) FROM FuelLog f WHERE f.user.id = :userId AND f.logDate >= :from AND f.logDate < :to")
     Double sumTotalCostBetween(Long userId, LocalDateTime from, LocalDateTime to);

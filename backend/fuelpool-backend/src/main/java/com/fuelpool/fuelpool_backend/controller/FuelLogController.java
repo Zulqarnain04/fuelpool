@@ -25,6 +25,11 @@ public class FuelLogController {
         return ResponseEntity.ok(fuelLogService.save(user, req));
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<FuelLog> get(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        return ResponseEntity.ok(fuelLogService.findById(id, user));
+    }
+
     @GetMapping
     public ResponseEntity<Page<FuelLog>> list(@AuthenticationPrincipal User user,
                                               @RequestParam(defaultValue = "0") int page,
