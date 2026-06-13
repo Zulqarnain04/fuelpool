@@ -2,8 +2,10 @@ package com.fuelpool.fuelpool_backend.repository;
 
 import com.fuelpool.fuelpool_backend.model.Ride;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -21,4 +23,8 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
     boolean existsRideByDriverToday(Long driverId, LocalDateTime dayStart, LocalDateTime dayEnd);
 
     List<Ride> findByDriverIdAndStatusNot(Long driverId, Ride.RideStatus status);
+
+    @Modifying
+    @Transactional
+    void deleteAllByDriverIdIn(List<Long> driverIds);
 }

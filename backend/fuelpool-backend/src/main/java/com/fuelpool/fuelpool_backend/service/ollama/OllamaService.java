@@ -3,8 +3,10 @@ package com.fuelpool.fuelpool_backend.service.ollama;
 import com.fuelpool.fuelpool_backend.config.OllamaConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,22 +17,25 @@ import java.util.Map;
 public class OllamaService {
 
     private final OllamaConfig ollamaConfig;
-    private final RestTemplate ollamaRestTemplate;
+    private final RestClient ollamaRestClient;
 
     public String generate(String systemPrompt, String userPrompt) {
         String fullPrompt = "System: " + systemPrompt + "\n\nUser: " + userPrompt;
-        Map<String, Object> body = new HashMap<>();
-        body.put("model", ollamaConfig.getModel());
-        body.put("prompt", fullPrompt);
-        body.put("stream", false);
+
+        Map<String, Object> requestBody = new HashMap<>();
+        requestBody.put("model", ollamaConfig.getModel());
+        requestBody.put("prompt", fullPrompt);
+        requestBody.put("stream", false);
 
         try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> response = ollamaRestTemplate.postForObject(
-                    ollamaConfig.getBaseUrl() + "/api/generate",
-                    body,
-                    Map.class
-            );
+            Map<String, Object> response = ollamaRestClient
+                    .post()
+                    .uri("/api/generate")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .body(new ParameterizedTypeReference<>() {});
+
             if (response != null && response.containsKey("response")) {
                 return (String) response.get("response");
             }

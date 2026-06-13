@@ -1,5 +1,6 @@
 package com.fuelpool.fuelpool_backend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,6 +29,7 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @JsonIgnore
     @Column(nullable = false)
     private String password;
 
@@ -63,34 +65,21 @@ public class User implements UserDetails {
         MALE, FEMALE
     }
 
-    // UserDetails contract
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of();
-    }
+    @Override @JsonIgnore
+    public Collection<? extends GrantedAuthority> getAuthorities() { return List.of(); }
 
-    @Override
-    public String getUsername() {
-        return email;
-    }
+    @Override @JsonIgnore
+    public String getUsername() { return email; }
 
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
+    @Override @JsonIgnore
+    public boolean isAccountNonExpired() { return true; }
 
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
+    @Override @JsonIgnore
+    public boolean isAccountNonLocked() { return true; }
 
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
-    }
+    @Override @JsonIgnore
+    public boolean isCredentialsNonExpired() { return true; }
 
-    @Override
-    public boolean isEnabled() {
-        return true;
-    }
+    @Override @JsonIgnore
+    public boolean isEnabled() { return true; }
 }

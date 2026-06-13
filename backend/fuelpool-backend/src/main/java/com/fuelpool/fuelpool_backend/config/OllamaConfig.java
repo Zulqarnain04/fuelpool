@@ -3,8 +3,11 @@ package com.fuelpool.fuelpool_backend.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+import java.net.http.HttpClient;
+import java.time.Duration;
 
 @Configuration
 public class OllamaConfig {
@@ -18,19 +21,18 @@ public class OllamaConfig {
     @Value("${ollama.timeout}")
     private int timeout;
 
-    public String getBaseUrl() {
-        return baseUrl;
-    }
-
-    public String getModel() {
-        return model;
-    }
+    public String getBaseUrl() { return baseUrl; }
+    public String getModel()   { return model; }
 
     @Bean
-    public RestTemplate ollamaRestTemplate() {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(timeout);
-        factory.setReadTimeout(timeout);
-        return new RestTemplate(factory);
+    public RestClient ollamaRestClient() {
+        HttpClient httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(timeout))
+                .build();
+
+        return RestClient.builder()
+                .baseUrl(baseUrl)
+                .requestFactory(new JdkClientHttpRequestFactory(httpClient))
+                .build();
     }
 }

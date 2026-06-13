@@ -1,12 +1,13 @@
 package com.fuelpool.fuelpool_backend.repository;
 
 import com.fuelpool.fuelpool_backend.model.FuelLog;
-import com.fuelpool.fuelpool_backend.model.Vehicle;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,4 +26,8 @@ public interface FuelLogRepository extends JpaRepository<FuelLog, Long> {
 
     @Query("SELECT SUM(f.totalCost) FROM FuelLog f WHERE f.user.id = :userId AND f.logDate >= :from AND f.logDate < :to")
     Double sumTotalCostBetween(Long userId, LocalDateTime from, LocalDateTime to);
+
+    @Modifying
+    @Transactional
+    void deleteAllByUserIdIn(List<Long> userIds);
 }
