@@ -1,6 +1,6 @@
 # FuelPool 🚗⛽
 
-> **UTM ASCEND 2030 Vibeathon — AI Coding Challenge**
+> **UTM Vibeathon — AI Coding Challenge**
 > Smart fuel management + campus carpooling powered by AI
 
 ---
