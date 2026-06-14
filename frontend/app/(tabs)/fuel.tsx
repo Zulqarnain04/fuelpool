@@ -6,14 +6,16 @@ import { vehicleApi } from '../../src/services/api';
 import type { FuelType, Vehicle } from '../../src/services/api';
 import FuelOverview from '../../src/components/fuel/FuelOverview';
 import MofArticleScreen from '../../src/components/fuel/MofArticleScreen';
-import AddFuelLog from '../../src/components/fuel/AddFuelLog';
+import AddFuelLogBottomSheet from '../../src/components/fuel/AddFuelLogBottomSheet';
 import FuelHistory from '../../src/components/fuel/FuelHistory';
+import ErrorBoundary from '../../src/components/common/ErrorBoundary';
 
-type SubScreen = 'overview' | 'article' | 'add-log' | 'history';
+type SubScreen = 'overview' | 'article' | 'history';
 
 export default function FuelTab() {
   const [screen, setScreen] = useState<SubScreen>('overview');
   const [userFuel, setUserFuel] = useState<FuelType>('RON95_MARKET');
+  const [addLogOpen, setAddLogOpen] = useState(false);
 
   useEffect(() => {
     vehicleApi
@@ -26,22 +28,38 @@ export default function FuelTab() {
       .catch(() => {});
   }, []);
 
+  let body: React.ReactNode;
   switch (screen) {
     case 'article':
-      return <MofArticleScreen onBack={() => setScreen('overview')} />;
-    case 'add-log':
-      return <AddFuelLog userFuel={userFuel} onCancel={() => setScreen('overview')} onSaved={() => setScreen('history')} />;
+      body = <MofArticleScreen onBack={() => setScreen('overview')} />;
+      break;
     case 'history':
-      return <FuelHistory onBack={() => setScreen('overview')} onAddLog={() => setScreen('add-log')} />;
+      body = <FuelHistory onBack={() => setScreen('overview')} onAddLog={() => setAddLogOpen(true)} />;
+      break;
     case 'overview':
     default:
-      return (
+      body = (
         <FuelOverview
           userFuel={userFuel}
           onOpenArticle={() => setScreen('article')}
-          onAddLog={() => setScreen('add-log')}
+          onAddLog={() => setAddLogOpen(true)}
           onHistory={() => setScreen('history')}
         />
       );
   }
+
+  return (
+    <ErrorBoundary>
+      {body}
+      <AddFuelLogBottomSheet
+        visible={addLogOpen}
+        userFuel={userFuel}
+        onClose={() => setAddLogOpen(false)}
+        onSaved={() => {
+          setAddLogOpen(false);
+          setScreen('history');
+        }}
+      />
+    </ErrorBoundary>
+  );
 }

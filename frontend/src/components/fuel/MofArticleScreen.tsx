@@ -107,7 +107,7 @@ export default function MofArticleScreen({ onBack }: { onBack: () => void }) {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.topBar}>
-        <Pressable onPress={onBack} hitSlop={10}>
+        <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
           <ArrowLeft size={22} color={TEXT_PRIMARY} />
         </Pressable>
         <Text style={styles.topTitle}>MOF Update</Text>
@@ -126,7 +126,7 @@ export default function MofArticleScreen({ onBack }: { onBack: () => void }) {
         <View style={styles.center}>
           <View style={styles.errIcon}><WifiOff size={26} color={TEXT_LIGHT} /></View>
           <Text style={styles.errTitle}>Couldn't load the article</Text>
-          <Pressable style={styles.retryBtn} onPress={load}>
+          <Pressable style={styles.retryBtn} onPress={load} accessibilityRole="button" accessibilityLabel="Retry loading article">
             <RefreshCw size={16} color={CARD} />
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
@@ -245,7 +245,7 @@ export default function MofArticleScreen({ onBack }: { onBack: () => void }) {
 
           {/* link */}
           {article?.sourceUrl ? (
-            <Pressable style={styles.linkBtn} onPress={() => Linking.openURL(article.sourceUrl!)}>
+            <Pressable style={styles.linkBtn} onPress={() => Linking.openURL(article.sourceUrl!)} accessibilityRole="button" accessibilityLabel="Read full article on MOF website">
               <ExternalLink size={16} color={FP_SECONDARY} />
               <Text style={styles.linkText}>Read full article on MOF website</Text>
             </Pressable>

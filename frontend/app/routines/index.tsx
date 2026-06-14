@@ -57,7 +57,7 @@ export default function RoutinesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}><ArrowLeft size={22} color={TEXT_PRIMARY} /></Pressable>
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back"><ArrowLeft size={22} color={TEXT_PRIMARY} /></Pressable>
         <Text style={styles.topTitle}>Routines</Text>
         <View style={{ width: 22 }} />
       </View>
@@ -68,7 +68,7 @@ export default function RoutinesScreen() {
         <View style={styles.center}>
           <WifiOff size={26} color={TEXT_LIGHT} />
           <Text style={styles.errTitle}>Couldn't load routines</Text>
-          <Pressable style={styles.retry} onPress={load}><RefreshCw size={15} color={CARD} /><Text style={styles.retryText}>Retry</Text></Pressable>
+          <Pressable style={styles.retry} onPress={load} accessibilityRole="button" accessibilityLabel="Retry loading routines"><RefreshCw size={15} color={CARD} /><Text style={styles.retryText}>Retry</Text></Pressable>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll}>
@@ -82,10 +82,22 @@ export default function RoutinesScreen() {
             routines.map((r) => {
               const days = (r.daysOfWeek ?? '').split(',').filter(Boolean).map((d) => DAY_SHORT[d] ?? d).join(' ');
               return (
-                <Pressable key={r.id} style={styles.card} onPress={() => router.push({ pathname: '/routines/new' as never, params: { id: String(r.id) } })}>
+                <Pressable
+                  key={r.id}
+                  style={styles.card}
+                  onPress={() => router.push({ pathname: '/routines/new' as never, params: { id: String(r.id) } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Routine ${r.name}, ${r.originLabel ?? 'Origin'} to ${r.destLabel ?? 'Destination'}`}
+                >
                   <View style={styles.rowBetween}>
                     <Text style={styles.name}>{r.name}</Text>
-                    <Switch value={!!r.active} onValueChange={() => toggle(r)} trackColor={{ false: BORDER, true: FP_PRIMARY }} thumbColor={CARD} />
+                    <Switch
+                      value={!!r.active}
+                      onValueChange={() => toggle(r)}
+                      trackColor={{ false: BORDER, true: FP_PRIMARY }}
+                      thumbColor={CARD}
+                      accessibilityLabel={`${r.name} active`}
+                    />
                   </View>
                   <Text style={styles.route} numberOfLines={1}>{r.originLabel ?? 'Origin'} → {r.destLabel ?? 'Destination'}</Text>
                   <View style={styles.metaRow}>
@@ -97,7 +109,7 @@ export default function RoutinesScreen() {
                     <Text style={[styles.autoText, { color: r.autoRequest ? FP_PRIMARY : TEXT_LIGHT }]}>
                       {r.autoRequest ? '⚡ Auto-request on' : 'Auto-request off'}
                     </Text>
-                    <Pressable onPress={() => remove(r)} hitSlop={8} style={styles.delBtn}><Trash2 size={15} color={FP_DANGER} /></Pressable>
+                    <Pressable onPress={() => remove(r)} hitSlop={8} style={styles.delBtn} accessibilityRole="button" accessibilityLabel={`Delete routine ${r.name}`}><Trash2 size={15} color={FP_DANGER} /></Pressable>
                   </View>
                 </Pressable>
               );
@@ -108,7 +120,7 @@ export default function RoutinesScreen() {
       )}
 
       {/* '/routines/new' is a real route; cast works around a typed-routes gen quirk for this nested path. */}
-      <Pressable style={styles.fab} onPress={() => router.push('/routines/new' as Href)}>
+      <Pressable style={styles.fab} onPress={() => router.push('/routines/new' as Href)} accessibilityRole="button" accessibilityLabel="Add routine">
         <Plus size={26} color={CARD} />
       </Pressable>
     </SafeAreaView>

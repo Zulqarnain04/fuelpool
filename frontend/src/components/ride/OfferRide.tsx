@@ -42,7 +42,7 @@ export default function OfferRide({ onChanged }: { onChanged: () => void }) {
         <View style={styles.circle}><Car size={28} color={FP_CARPOOL} /></View>
         <Text style={styles.title}>Add a vehicle to offer rides</Text>
         <Text style={styles.sub}>You need a vehicle set up before posting a ride.</Text>
-        <Pressable style={styles.cta} onPress={() => router.push('/(onboarding)/vehicle')}>
+        <Pressable style={styles.cta} onPress={() => router.push('/(onboarding)/vehicle')} accessibilityRole="button" accessibilityLabel="Set up vehicle">
           <Text style={styles.ctaText}>Set up vehicle</Text>
         </Pressable>
       </View>
@@ -52,7 +52,7 @@ export default function OfferRide({ onChanged }: { onChanged: () => void }) {
   return (
     <View style={styles.flex}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Pressable style={styles.postCta} onPress={() => setSheet(true)}>
+        <Pressable style={styles.postCta} onPress={() => setSheet(true)} accessibilityRole="button" accessibilityLabel="Post a ride">
           <Plus size={20} color={CARD} />
           <Text style={styles.postCtaText}>Post a Ride</Text>
         </Pressable>
@@ -68,7 +68,13 @@ export default function OfferRide({ onChanged }: { onChanged: () => void }) {
               const sm = statusMeta(r.status);
               const seats = (r.maxSeats ?? 0) - (r.confirmedPassengers ?? 0);
               return (
-                <Pressable key={r.id} style={styles.card} onPress={() => router.push({ pathname: '/ride/[rideId]', params: { rideId: String(r.id) } })}>
+                <Pressable
+                  key={r.id}
+                  style={styles.card}
+                  onPress={() => router.push({ pathname: '/ride/[rideId]', params: { rideId: String(r.id) } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ride ${r.originLabel ?? 'Origin'} to ${r.destinationLabel ?? 'Dest'}, ${sm.label}`}
+                >
                   <View style={styles.rowBetween}>
                     <Text style={styles.route} numberOfLines={1}>{r.originLabel ?? 'Origin'} → {r.destinationLabel ?? 'Dest'}</Text>
                     <View style={[styles.statusChip, { backgroundColor: sm.bg }]}><Text style={[styles.statusText, { color: sm.color }]}>{sm.label}</Text></View>

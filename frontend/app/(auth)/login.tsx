@@ -16,6 +16,7 @@ import { Droplet, Mail, Lock, Eye, EyeOff, CircleAlert, ArrowRight } from 'lucid
 import useAuth from '../../src/hooks/useAuth';
 import Input from '../../src/components/common/Input';
 import PrimaryButton from '../../src/components/common/PrimaryButton';
+import { toast } from '../../src/components/common/Toast';
 import {
   FP_PRIMARY,
   FP_DANGER,
@@ -65,6 +66,7 @@ export default function Login() {
     setSeeding(true);
     try {
       await seedDemo();
+      toast.success('Demo data loaded!');
       router.replace('/(tabs)/home');
     } catch (e: any) {
       setError(
@@ -121,7 +123,11 @@ export default function Login() {
 
             <View style={styles.labelRow}>
               <Text style={styles.label}>Password</Text>
-              <Pressable onPress={() => Alert.alert('Forgot Password', 'Password reset is coming soon.')}>
+              <Pressable
+                onPress={() => Alert.alert('Forgot Password', 'Password reset is coming soon.')}
+                accessibilityRole="button"
+                accessibilityLabel="Forgot password"
+              >
                 <Text style={styles.forgot}>Forgot Password?</Text>
               </Pressable>
             </View>
@@ -137,7 +143,12 @@ export default function Login() {
               error={!!error}
               editable={!disabled}
               rightElement={
-                <Pressable onPress={() => setShowPw((s) => !s)} hitSlop={10}>
+                <Pressable
+                  onPress={() => setShowPw((s) => !s)}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel={showPw ? 'Hide password' : 'Show password'}
+                >
                   {showPw ? (
                     <EyeOff size={18} color={TEXT_LIGHT} />
                   ) : (
@@ -159,7 +170,13 @@ export default function Login() {
           <View style={styles.bottom}>
             <PrimaryButton label="Log In" onPress={onLogin} loading={loading} disabled={disabled} />
 
-            <Pressable onPress={onDemo} disabled={disabled} style={styles.demoBtn}>
+            <Pressable
+              onPress={onDemo}
+              disabled={disabled}
+              style={styles.demoBtn}
+              accessibilityRole="button"
+              accessibilityLabel={seeding ? 'Loading demo data' : 'Use demo data'}
+            >
               <Text style={styles.demoText}>{seeding ? 'Loading demo…' : 'Use Demo Data'}</Text>
               {!seeding && <ArrowRight size={14} color={FP_PRIMARY} />}
             </Pressable>
@@ -167,7 +184,7 @@ export default function Login() {
             <View style={styles.signupRow}>
               <Text style={styles.signupMuted}>New user? </Text>
               <Link href="/(auth)/register" asChild>
-                <Pressable disabled={disabled}>
+                <Pressable disabled={disabled} accessibilityRole="button" accessibilityLabel="Sign up for a new account">
                   <Text style={styles.signupLink}>Sign up</Text>
                 </Pressable>
               </Link>

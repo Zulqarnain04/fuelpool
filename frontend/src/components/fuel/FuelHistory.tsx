@@ -1,5 +1,5 @@
 // src/components/fuel/FuelHistory.tsx — fuel log history (sub-screen 4).
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable, FlatList, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -109,23 +109,30 @@ export default function FuelHistory({ onBack, onAddLog }: Props) {
     ]);
   };
 
-  const filtered = filter === 'ALL' ? logs : logs.filter((l) => l.fuelType === filter);
+  const filtered = useMemo(
+    () => (filter === 'ALL' ? logs : logs.filter((l) => l.fuelType === filter)),
+    [logs, filter],
+  );
   const avgEff = stats?.avgEfficiency != null ? num(stats.avgEfficiency) : null;
 
   // monthly chart (last 6 months)
-  const monthly = stats?.monthlyBreakdown ?? {};
-  const monthEntries = Object.entries(monthly)
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-6)
-    .map(([k, v]) => ({ label: MONTHS[parseInt(k.split('-')[1], 10) - 1], value: num(v) }));
-  const curKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
-  const curLabel = MONTHS[new Date().getMonth()];
-  const curSpend = num(monthly[curKey]);
-  const prevDate = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
-  const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
-  const prevSpend = num(monthly[prevKey]);
-  const delta = prevSpend > 0 ? ((curSpend - prevSpend) / prevSpend) * 100 : 0;
-  const fillUpsThisMonth = logs.filter((l) => (l.logDate ?? '').startsWith(curKey)).length;
+  const { monthEntries, curLabel, curSpend, prevSpend, delta, fillUpsThisMonth } = useMemo(() => {
+    const monthly = stats?.monthlyBreakdown ?? {};
+    const entries = Object.entries(monthly)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .slice(-6)
+      .map(([k, v]) => ({ label: MONTHS[parseInt(k.split('-')[1], 10) - 1], value: num(v) }));
+    const now = new Date();
+    const curKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const cLabel = MONTHS[now.getMonth()];
+    const cSpend = num(monthly[curKey]);
+    const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+    const pSpend = num(monthly[prevKey]);
+    const d = pSpend > 0 ? ((cSpend - pSpend) / pSpend) * 100 : 0;
+    const fillUps = logs.filter((l) => (l.logDate ?? '').startsWith(curKey)).length;
+    return { monthEntries: entries, curLabel: cLabel, curSpend: cSpend, prevSpend: pSpend, delta: d, fillUpsThisMonth: fillUps };
+  }, [stats, logs]);
 
   const Header = () => (
     <View>
@@ -170,7 +177,13 @@ export default function FuelHistory({ onBack, onAddLog }: Props) {
         {FILTERS.map((f) => {
           const active = filter === f.type;
           return (
-            <Pressable key={f.label} onPress={() => setFilter(f.type)} style={[styles.filterChip, active && styles.filterChipActive]}>
+            <Pressable
+              key={f.label}
+              onPress={() => setFilter(f.type)}
+              style={[styles.filterChip, active && styles.filterChipActive]}
+              accessibilityRole="button"
+              accessibilityLabel={`Filter by ${f.label}${active ? ', selected' : ''}`}
+            >
               <Text style={[styles.filterText, active && { color: CARD }]}>{f.label}</Text>
             </Pressable>
           );
@@ -203,7 +216,7 @@ export default function FuelHistory({ onBack, onAddLog }: Props) {
         <View style={styles.center}>
           <View style={styles.errIcon}><WifiOff size={26} color={TEXT_LIGHT} /></View>
           <Text style={styles.errTitle}>Couldn't load history</Text>
-          <Pressable style={styles.retryBtn} onPress={load}>
+          <Pressable style={styles.retryBtn} onPress={load} accessibilityRole="button" accessibilityLabel="Retry loading fuel history">
             <RefreshCw size={16} color={CARD} />
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
@@ -220,7 +233,7 @@ export default function FuelHistory({ onBack, onAddLog }: Props) {
           <View style={styles.emptyCircle}><Droplet size={32} color={FP_PRIMARY} /></View>
           <Text style={styles.errTitle}>No Fuel Logs Yet</Text>
           <Text style={styles.emptySub}>Log your first fill-up to start tracking spend and efficiency.</Text>
-          <Pressable style={styles.retryBtn} onPress={onAddLog}>
+          <Pressable style={styles.retryBtn} onPress={onAddLog} accessibilityRole="button" accessibilityLabel="Log your first fill-up">
             <Plus size={16} color={CARD} />
             <Text style={styles.retryText}>Log First Fill-up</Text>
           </Pressable>
@@ -241,54 +254,15 @@ export default function FuelHistory({ onBack, onAddLog }: Props) {
         onEndReached={loadMore}
         onEndReachedThreshold={0.4}
         ListFooterComponent={loadingMore ? <ActivityIndicator color={FP_PRIMARY} style={{ marginVertical: 16 }} /> : null}
-        renderItem={({ item }) => {
-          const m = item.fuelType ? FUEL_META[item.fuelType] : null;
-          const eff = item.efficiencyThisFill != null ? num(item.efficiencyThisFill) : null;
-          const isOpen = expanded === item.id;
-          return (
-            <Pressable style={styles.logCard} onPress={() => setExpanded(isOpen ? null : item.id)}>
-              <View style={styles.rowBetween}>
-                <View style={styles.rowCenter}>
-                  <View style={[styles.logIcon, { backgroundColor: m?.bg ?? '#E6F1FB' }]}>
-                    <Droplet size={16} color={m?.color ?? FP_PRIMARY} />
-                  </View>
-                  <View>
-                    <Text style={styles.logStation}>{item.stationName || 'Fuel station'}</Text>
-                    <Text style={styles.logDate}>{fmtDate(item.logDate)}</Text>
-                  </View>
-                </View>
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.logCost}>{rm(item.totalCost)}</Text>
-                  {m ? <Text style={[styles.logType, { color: m.color }]}>{m.label}</Text> : null}
-                </View>
-              </View>
-
-              <View style={styles.logMetaRow}>
-                <Text style={styles.logMeta}>{num(item.litresFilled).toFixed(2)} L · {rm(item.pricePerLitre)}/L</Text>
-                {eff != null ? (
-                  <View style={styles.effBadge}>
-                    {eff >= (avgEff ?? 0) ? <TrendingUp size={11} color={FP_PRIMARY} /> : <TrendingDown size={11} color={FP_WARNING} />}
-                    <Text style={[styles.effText, { color: eff >= (avgEff ?? 0) ? FP_PRIMARY : FP_WARNING }]}>{eff.toFixed(1)} km/L</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {isOpen ? (
-                <View style={styles.expand}>
-                  <Detail label="Odometer" value={item.odometer != null ? `${item.odometer} km` : '—'} />
-                  <Detail label="Distance since last" value={item.distanceSinceLast != null ? `${item.distanceSinceLast} km` : '—'} />
-                  <Detail label="Cost per km" value={item.costPerKm != null ? rm(item.costPerKm, 3) : '—'} />
-                  <Detail label="Full tank" value={item.fullTank ? 'Yes' : 'No'} />
-                  {item.notes ? <Detail label="Notes" value={item.notes} /> : null}
-                  <Pressable style={styles.deleteBtn} onPress={() => onDelete(item.id)}>
-                    <Trash2 size={14} color={FP_DANGER} />
-                    <Text style={styles.deleteText}>Delete entry</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-            </Pressable>
-          );
-        }}
+        renderItem={({ item }) => (
+          <FuelLogEntry
+            item={item}
+            avgEff={avgEff}
+            isOpen={expanded === item.id}
+            onToggle={() => setExpanded((cur) => (cur === item.id ? null : item.id))}
+            onDelete={onDelete}
+          />
+        )}
         ListEmptyComponent={
           <Text style={styles.noFilter}>No {filter === 'ALL' ? '' : FUEL_META[filter as FuelType]?.label + ' '}logs to show.</Text>
         }
@@ -300,16 +274,86 @@ export default function FuelHistory({ onBack, onAddLog }: Props) {
 function TopBar({ onBack, onAddLog }: { onBack: () => void; onAddLog: () => void }) {
   return (
     <View style={styles.topBar}>
-      <Pressable onPress={onBack} hitSlop={10}>
+      <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back">
         <ArrowLeft size={22} color={TEXT_PRIMARY} />
       </Pressable>
       <Text style={styles.topTitle}>Fuel History</Text>
-      <Pressable onPress={onAddLog} hitSlop={10}>
+      <Pressable onPress={onAddLog} hitSlop={10} accessibilityRole="button" accessibilityLabel="Log a new fill-up">
         <Plus size={22} color={TEXT_PRIMARY} />
       </Pressable>
     </View>
   );
 }
+
+const FuelLogEntry = React.memo(function FuelLogEntry({
+  item,
+  avgEff,
+  isOpen,
+  onToggle,
+  onDelete,
+}: {
+  item: FuelLog;
+  avgEff: number | null;
+  isOpen: boolean;
+  onToggle: () => void;
+  onDelete: (id: number) => void;
+}) {
+  const m = item.fuelType ? FUEL_META[item.fuelType] : null;
+  const eff = item.efficiencyThisFill != null ? num(item.efficiencyThisFill) : null;
+  return (
+    <Pressable
+      style={styles.logCard}
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.stationName || 'Fuel station'} fill-up on ${fmtDate(item.logDate)}, ${rm(item.totalCost)}${isOpen ? ', expanded' : ', collapsed'}`}
+    >
+      <View style={styles.rowBetween}>
+        <View style={styles.rowCenter}>
+          <View style={[styles.logIcon, { backgroundColor: m?.bg ?? '#E6F1FB' }]}>
+            <Droplet size={16} color={m?.color ?? FP_PRIMARY} />
+          </View>
+          <View>
+            <Text style={styles.logStation}>{item.stationName || 'Fuel station'}</Text>
+            <Text style={styles.logDate}>{fmtDate(item.logDate)}</Text>
+          </View>
+        </View>
+        <View style={{ alignItems: 'flex-end' }}>
+          <Text style={styles.logCost}>{rm(item.totalCost)}</Text>
+          {m ? <Text style={[styles.logType, { color: m.color }]}>{m.label}</Text> : null}
+        </View>
+      </View>
+
+      <View style={styles.logMetaRow}>
+        <Text style={styles.logMeta}>{num(item.litresFilled).toFixed(2)} L · {rm(item.pricePerLitre)}/L</Text>
+        {eff != null ? (
+          <View style={styles.effBadge}>
+            {eff >= (avgEff ?? 0) ? <TrendingUp size={11} color={FP_PRIMARY} /> : <TrendingDown size={11} color={FP_WARNING} />}
+            <Text style={[styles.effText, { color: eff >= (avgEff ?? 0) ? FP_PRIMARY : FP_WARNING }]}>{eff.toFixed(1)} km/L</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {isOpen ? (
+        <View style={styles.expand}>
+          <Detail label="Odometer" value={item.odometer != null ? `${item.odometer} km` : '—'} />
+          <Detail label="Distance since last" value={item.distanceSinceLast != null ? `${item.distanceSinceLast} km` : '—'} />
+          <Detail label="Cost per km" value={item.costPerKm != null ? rm(item.costPerKm, 3) : '—'} />
+          <Detail label="Full tank" value={item.fullTank ? 'Yes' : 'No'} />
+          {item.notes ? <Detail label="Notes" value={item.notes} /> : null}
+          <Pressable
+            style={styles.deleteBtn}
+            onPress={() => onDelete(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel="Delete this fill-up entry"
+          >
+            <Trash2 size={14} color={FP_DANGER} />
+            <Text style={styles.deleteText}>Delete entry</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+});
 
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (

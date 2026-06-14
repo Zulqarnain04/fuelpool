@@ -1,5 +1,5 @@
 // app/(tabs)/home.tsx — L3 main dashboard. Aggregates L1 (fuel), L2 (carpool), L3 (eco).
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -36,7 +36,10 @@ import {
 import useAuth from '../../src/hooks/useAuth';
 import AiBadge from '../../src/components/common/AiBadge';
 import SkeletonBox from '../../src/components/common/SkeletonBox';
-import { ecoApi, carpoolApi } from '../../src/services/api';
+import ErrorBoundary from '../../src/components/common/ErrorBoundary';
+import NotificationBanner from '../../src/components/home/NotificationBanner';
+import { checkPendingNotification, markNotificationsSeen, type PendingNotification } from '../../src/utils/notifications';
+import { ecoApi, carpoolApi, fuelApi } from '../../src/services/api';
 import type { DashboardResponse, EcoWeekly, RideSummary } from '../../src/services/api';
 import {
   FP_PRIMARY,
@@ -149,6 +152,14 @@ function SectionHeader({
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 export default function Home() {
+  return (
+    <ErrorBoundary>
+      <HomeContent />
+    </ErrorBoundary>
+  );
+}
+
+function HomeContent() {
   const router = useRouter();
   const { user } = useAuth();
 
@@ -159,6 +170,7 @@ export default function Home() {
   const [aiText, setAiText] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
+  const [notification, setNotification] = useState<PendingNotification | null>(null);
 
   const fuelAnim = useRef(new Animated.Value(0)).current;
   const alertAnim = useRef(new Animated.Value(1)).current;
@@ -168,20 +180,25 @@ export default function Home() {
     setAlertDismissed(false);
     alertAnim.setValue(1);
     try {
-      const [dRes, eRes, rRes] = await Promise.allSettled([
+      const [dRes, eRes, rRes, mRes] = await Promise.allSettled([
         ecoApi.getDashboard(),
         ecoApi.getWeeklyStats(0),
         carpoolApi.getRides({ status: 'OPEN' }),
+        fuelApi.getLatestMOFArticle(),
       ]);
       if (dRes.status !== 'fulfilled') throw dRes.reason;
 
       const d: DashboardResponse = dRes.value.data;
       const e: EcoWeekly = eRes.status === 'fulfilled' ? eRes.value.data : {};
       const rd: RideSummary[] = rRes.status === 'fulfilled' ? rRes.value.data ?? [] : [];
+      const mofId: number | undefined = mRes.status === 'fulfilled' ? mRes.value.data?.id : undefined;
 
       setDash(d);
       setEco(e);
       setRides(rd.slice(0, 2));
+
+      checkPendingNotification(e, mofId).then(setNotification);
+      markNotificationsSeen(e, mofId);
 
       // AI insight text — use cached summary, else generate in the background.
       if (e.ollamaSummary) {
@@ -225,6 +242,13 @@ export default function Home() {
     );
   };
 
+  // bar chart values derived from weekly total (no per-day data from API)
+  const weekTotal = num(dash?.weeklySavedVsSolo) || num(eco?.savedVsSolo);
+  const barValues = useMemo(() => {
+    const weights = [0.16, 0.14, 0.15, 0.2, 0.18, 0.1, 0.07];
+    return weights.map((w) => Math.max(1, Math.round(weekTotal * w)));
+  }, [weekTotal]);
+
   // ── Greeting (shared by default + empty) ──
   const dateStr = format(new Date(), 'EEEE, d MMM');
   const greeting = greetingFor(new Date().getHours());
@@ -248,7 +272,7 @@ export default function Home() {
             <Text style={styles.greetSub}>Let's set up your first journey.</Text>
           )}
         </View>
-        <Pressable onPress={() => router.push('/profile')} hitSlop={8}>
+        <Pressable onPress={() => router.push('/profile')} hitSlop={8} accessibilityRole="button" accessibilityLabel="Open profile">
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initialsOf(user?.name)}</Text>
             <View style={styles.onlineDot} />
@@ -317,7 +341,7 @@ export default function Home() {
             <Text style={styles.errorMsg}>
               Unable to load your dashboard. Check your connection and try again.
             </Text>
-            <Pressable style={styles.retryBtn} onPress={() => load()}>
+            <Pressable style={styles.retryBtn} onPress={() => load()} accessibilityRole="button" accessibilityLabel="Retry loading dashboard">
               <RefreshCw size={16} color={CARD} />
               <Text style={styles.retryText}>Retry</Text>
             </Pressable>
@@ -372,7 +396,7 @@ export default function Home() {
                   <Text style={styles.setupLabel}>{c.label}</Text>
                   <Text style={styles.setupDesc}>{c.desc}</Text>
                 </View>
-                <Pressable style={styles.setupBtn} onPress={c.go}>
+                <Pressable style={styles.setupBtn} onPress={c.go} accessibilityRole="button" accessibilityLabel={`${c.cta}: ${c.label}`}>
                   <Text style={styles.setupBtnText}>{c.cta}</Text>
                 </Pressable>
               </View>
@@ -398,11 +422,6 @@ export default function Home() {
   const showAlert = action !== 'NORMAL' && !alertDismissed;
   const isWait = action === 'WAIT';
 
-  // bar chart values derived from weekly total (no per-day data from API)
-  const weekTotal = num(dash?.weeklySavedVsSolo) || num(eco?.savedVsSolo);
-  const weights = [0.16, 0.14, 0.15, 0.2, 0.18, 0.1, 0.07];
-  const barValues = weights.map((w) => Math.max(1, Math.round(weekTotal * w)));
-
   const prices = dash?.currentPrices;
   const priceChips = [
     { label: 'RON95', value: prices?.ron95, color: FP_PRIMARY, bg: FP_PRIMARY_LIGHT },
@@ -418,6 +437,17 @@ export default function Home() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={FP_PRIMARY} />}
       >
         <GreetingCard />
+
+        {notification && (
+          <NotificationBanner
+            message={notification.message}
+            onPress={() => {
+              const target = notification.target;
+              setNotification(null);
+              router.push(target);
+            }}
+          />
+        )}
 
         {/* Fuel alert */}
         {showAlert && (
@@ -441,7 +471,7 @@ export default function Home() {
                 </View>
                 <Text style={styles.alertReason}>{dash?.refuelReason ?? 'Based on price trend analysis.'}</Text>
               </View>
-              <Pressable onPress={dismissAlert} hitSlop={10}>
+              <Pressable onPress={dismissAlert} hitSlop={10} accessibilityRole="button" accessibilityLabel="Dismiss alert">
                 <Text style={styles.alertClose}>✕</Text>
               </Pressable>
             </View>
@@ -478,7 +508,7 @@ export default function Home() {
               </View>
             </View>
           ) : (
-            <Pressable style={styles.promptCard} onPress={() => router.push('/(onboarding)/vehicle')}>
+            <Pressable style={styles.promptCard} onPress={() => router.push('/(onboarding)/vehicle')} accessibilityRole="button" accessibilityLabel="Set up your vehicle to unlock fuel range and efficiency tracking">
               <View style={[styles.iconChip, { backgroundColor: FP_SECONDARY_LIGHT }]}>
                 <Car size={16} color={FP_SECONDARY} />
               </View>
@@ -524,11 +554,11 @@ export default function Home() {
               {aiText ?? 'Your personalised weekly summary will appear here once you have a few trips logged.'}
             </Text>
             <View style={styles.aiActions}>
-              <Pressable style={styles.aiBtn} onPress={() => router.push('/(tabs)/ride')}>
+              <Pressable style={styles.aiBtn} onPress={() => router.push('/(tabs)/ride')} accessibilityRole="button" accessibilityLabel="Book a ride">
                 <Zap size={12} color="#FBBF24" />
                 <Text style={styles.aiBtnText}>Book a ride</Text>
               </Pressable>
-              <Pressable onPress={() => router.push('/(tabs)/eco')}>
+              <Pressable onPress={() => router.push('/(tabs)/eco')} accessibilityRole="button" accessibilityLabel="View eco analysis">
                 <Text style={styles.aiLink}>View analysis →</Text>
               </Pressable>
             </View>
@@ -541,7 +571,7 @@ export default function Home() {
             icon={<Users size={16} color={FP_SECONDARY} />}
             title="Nearby Matches"
             right={
-              <Pressable onPress={() => router.push('/(tabs)/ride')} style={styles.rowCenter}>
+              <Pressable onPress={() => router.push('/(tabs)/ride')} style={styles.rowCenter} accessibilityRole="button" accessibilityLabel="See all ride matches">
                 <Text style={styles.seeAll}>See all</Text>
                 <ChevronRight size={14} color={FP_SECONDARY} />
               </Pressable>
@@ -570,14 +600,20 @@ export default function Home() {
             icon={<Droplet size={16} color={FP_PRIMARY} />}
             title="Fuel Prices"
             right={
-              <Pressable onPress={() => router.push('/(tabs)/fuel')}>
+              <Pressable onPress={() => router.push('/(tabs)/fuel')} accessibilityRole="button" accessibilityLabel="View fuel price details">
                 <Text style={styles.seeAll}>Details →</Text>
               </Pressable>
             }
           />
           <View style={[styles.grid3, { marginTop: 10 }]}>
             {priceChips.map((c) => (
-              <Pressable key={c.label} style={styles.priceChip} onPress={() => router.push('/(tabs)/fuel')}>
+              <Pressable
+                key={c.label}
+                style={styles.priceChip}
+                onPress={() => router.push('/(tabs)/fuel')}
+                accessibilityRole="button"
+                accessibilityLabel={`${c.label} price: ${num(c.value) > 0 ? rm(c.value) : 'unavailable'}`}
+              >
                 <View style={[styles.priceIcon, { backgroundColor: c.bg }]}>
                   <Droplet size={12} color={c.color} />
                 </View>
@@ -601,7 +637,7 @@ export default function Home() {
 }
 
 // ── leaf components ──────────────────────────────────────────────────────────
-function StatCard({ emoji, label, value, delta }: { emoji: string; label: string; value: string; delta?: string }) {
+const StatCard = React.memo(function StatCard({ emoji, label, value, delta }: { emoji: string; label: string; value: string; delta?: string }) {
   return (
     <View style={styles.statCard}>
       <View style={styles.rowCenter}>
@@ -612,7 +648,7 @@ function StatCard({ emoji, label, value, delta }: { emoji: string; label: string
       {delta ? <Text style={styles.statDelta}>{delta}</Text> : null}
     </View>
   );
-}
+});
 
 function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
@@ -624,11 +660,16 @@ function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string
   );
 }
 
-function MatchCard({ ride, onPress }: { ride: RideSummary; onPress: () => void }) {
+const MatchCard = React.memo(function MatchCard({ ride, onPress }: { ride: RideSummary; onPress: () => void }) {
   const name = ride.driver?.name ?? 'Driver';
   const seats = Math.max(0, (ride.maxSeats ?? 0) - (ride.confirmedPassengers ?? 0));
   return (
-    <Pressable style={styles.matchCard} onPress={onPress}>
+    <Pressable
+      style={styles.matchCard}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Ride with ${name}, ${seats} seat${seats === 1 ? '' : 's'} available, ${(ride.originLabel ?? 'origin')} to ${(ride.destinationLabel ?? 'destination')}`}
+    >
       <View style={styles.matchAvatar}>
         <Text style={styles.matchAvatarText}>{initialsOf(name)}</Text>
       </View>
@@ -660,7 +701,7 @@ function MatchCard({ ride, onPress }: { ride: RideSummary; onPress: () => void }
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: BACKGROUND },

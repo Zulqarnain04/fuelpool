@@ -207,7 +207,7 @@ export default function FuelOverview({ userFuel, onOpenArticle, onAddLog, onHist
           <View style={styles.errorIcon}><WifiOff size={26} color={TEXT_LIGHT} /></View>
           <Text style={styles.errorTitle}>Couldn't load fuel data</Text>
           <Text style={styles.errorMsg}>Check your connection and try again.</Text>
-          <Pressable style={styles.retryBtn} onPress={() => load()}>
+          <Pressable style={styles.retryBtn} onPress={() => load()} accessibilityRole="button" accessibilityLabel="Retry loading fuel data">
             <RefreshCw size={16} color={CARD} />
             <Text style={styles.retryText}>Retry</Text>
           </Pressable>
@@ -256,7 +256,13 @@ export default function FuelOverview({ userFuel, onOpenArticle, onAddLog, onHist
             const m = FUEL_META[f];
             const active = selected === f;
             return (
-              <Pressable key={f} onPress={() => setSelected(f)} style={[styles.chip, active ? { backgroundColor: m.color, borderColor: m.color } : null]}>
+              <Pressable
+                key={f}
+                onPress={() => setSelected(f)}
+                style={[styles.chip, active ? { backgroundColor: m.color, borderColor: m.color } : null]}
+                accessibilityRole="button"
+                accessibilityLabel={`${m.label}${active ? ', selected' : ''}`}
+              >
                 <Text style={[styles.chipText, active && { color: CARD }]}>{m.label}</Text>
               </Pressable>
             );
@@ -289,7 +295,13 @@ export default function FuelOverview({ userFuel, onOpenArticle, onAddLog, onHist
               <Text style={styles.aiTitle}>  AI Recommendation</Text>
               <View style={{ marginLeft: 8 }}><AiBadge label={action} /></View>
             </View>
-            <Pressable onPress={refreshRec} hitSlop={10} style={styles.aiRefresh}>
+            <Pressable
+              onPress={refreshRec}
+              hitSlop={10}
+              style={styles.aiRefresh}
+              accessibilityRole="button"
+              accessibilityLabel={recRefreshing ? 'Refreshing AI recommendation' : 'Refresh AI recommendation'}
+            >
               {recRefreshing ? <ActivityIndicator size="small" color="#C7C2F0" /> : <RefreshCw size={15} color="#C7C2F0" />}
             </Pressable>
           </View>
@@ -306,7 +318,12 @@ export default function FuelOverview({ userFuel, onOpenArticle, onAddLog, onHist
           </View>
 
           {/* prediction toggle (chart prediction is independent + always shown) */}
-          <Pressable style={styles.predToggle} onPress={() => setShowPrediction((s) => !s)}>
+          <Pressable
+            style={styles.predToggle}
+            onPress={() => setShowPrediction((s) => !s)}
+            accessibilityRole="button"
+            accessibilityLabel={showPrediction ? 'Hide price prediction' : 'Show price prediction'}
+          >
             {showPrediction ? <EyeOff size={13} color="#C7C2F0" /> : <Eye size={13} color="#C7C2F0" />}
             <Text style={styles.predToggleText}>{showPrediction ? 'Hide price prediction' : 'Show price prediction'}</Text>
           </Pressable>
@@ -323,13 +340,25 @@ export default function FuelOverview({ userFuel, onOpenArticle, onAddLog, onHist
             <View style={styles.rowCenter}>
               <Cpu size={14} color={FP_AI} />
               <Text style={styles.cardTitle}>  Price Trend</Text>
-              <Pressable onPress={refreshPrediction} hitSlop={8} style={{ marginLeft: 8 }}>
+              <Pressable
+                onPress={refreshPrediction}
+                hitSlop={8}
+                style={{ marginLeft: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={predRefreshing ? 'Refreshing price prediction' : 'Refresh price prediction'}
+              >
                 {predRefreshing ? <ActivityIndicator size="small" color={FP_AI} /> : <RefreshCw size={14} color={FP_AI} />}
               </Pressable>
             </View>
             <View style={styles.periodRow}>
               {PERIODS.map((p, i) => (
-                <Pressable key={p.label} onPress={() => setPeriodIdx(i)} style={[styles.periodChip, periodIdx === i && styles.periodChipActive]}>
+                <Pressable
+                  key={p.label}
+                  onPress={() => setPeriodIdx(i)}
+                  style={[styles.periodChip, periodIdx === i && styles.periodChipActive]}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${p.label}${periodIdx === i ? ', selected' : ''}`}
+                >
                   <Text style={[styles.periodText, periodIdx === i && { color: CARD }]}>{p.label}</Text>
                 </Pressable>
               ))}
@@ -350,7 +379,7 @@ export default function FuelOverview({ userFuel, onOpenArticle, onAddLog, onHist
         {showBudi && budi ? <Budi95Tracker budi={budi} /> : null}
 
         {/* MOF teaser */}
-        <Pressable style={styles.mofCard} onPress={onOpenArticle}>
+        <Pressable style={styles.mofCard} onPress={onOpenArticle} accessibilityRole="button" accessibilityLabel="View MOF fuel price update">
           <View style={styles.mofIcon}><FileText size={18} color={FP_SECONDARY} /></View>
           <View style={{ flex: 1 }}>
             <View style={[styles.rowCenter, { marginBottom: 2 }]}>
@@ -363,7 +392,7 @@ export default function FuelOverview({ userFuel, onOpenArticle, onAddLog, onHist
           <ChevronRight size={18} color={TEXT_LIGHT} />
         </Pressable>
 
-        <Pressable style={styles.historyLink} onPress={onHistory}>
+        <Pressable style={styles.historyLink} onPress={onHistory} accessibilityRole="button" accessibilityLabel="View fuel history">
           <Text style={styles.historyLinkText}>View fuel history →</Text>
         </Pressable>
 
@@ -371,7 +400,7 @@ export default function FuelOverview({ userFuel, onOpenArticle, onAddLog, onHist
       </ScrollView>
 
       {/* FAB */}
-      <Pressable style={styles.fab} onPress={onAddLog}>
+      <Pressable style={styles.fab} onPress={onAddLog} accessibilityRole="button" accessibilityLabel="Add fuel log">
         <Plus size={26} color={CARD} />
       </Pressable>
     </SafeAreaView>

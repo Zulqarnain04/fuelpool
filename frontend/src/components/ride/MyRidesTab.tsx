@@ -40,7 +40,7 @@ export default function MyRidesTab() {
       <View style={styles.center}>
         <WifiOff size={26} color={TEXT_LIGHT} />
         <Text style={styles.errTitle}>Couldn't load your rides</Text>
-        <Pressable style={styles.retry} onPress={() => load()}><RefreshCw size={15} color={CARD} /><Text style={styles.retryText}>Retry</Text></Pressable>
+        <Pressable style={styles.retry} onPress={() => load()} accessibilityRole="button" accessibilityLabel="Retry loading your rides"><RefreshCw size={15} color={CARD} /><Text style={styles.retryText}>Retry</Text></Pressable>
       </View>
     );
   }
@@ -63,7 +63,13 @@ export default function MyRidesTab() {
             {asDriver.map((r) => {
               const sm = statusMeta(r.status);
               return (
-                <Pressable key={r.id} style={styles.card} onPress={() => router.push({ pathname: '/ride/[rideId]', params: { rideId: String(r.id) } })}>
+                <Pressable
+                  key={r.id}
+                  style={styles.card}
+                  onPress={() => router.push({ pathname: '/ride/[rideId]', params: { rideId: String(r.id) } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ride ${r.originLabel ?? 'Origin'} to ${r.destinationLabel ?? 'Dest'}, ${sm.label}`}
+                >
                   <View style={styles.rowBetween}>
                     <Text style={styles.route} numberOfLines={1}>{r.originLabel ?? 'Origin'} → {r.destinationLabel ?? 'Dest'}</Text>
                     <View style={[styles.chip, { backgroundColor: sm.bg }]}><Text style={[styles.chipText, { color: sm.color }]}>{sm.label}</Text></View>
@@ -85,7 +91,13 @@ export default function MyRidesTab() {
               const sm = statusMeta(req.status);
               const r = req.ride;
               return (
-                <Pressable key={req.id} style={styles.card} onPress={() => r && router.push({ pathname: '/ride/[rideId]', params: { rideId: String(r.id) } })}>
+                <Pressable
+                  key={req.id}
+                  style={styles.card}
+                  onPress={() => r && router.push({ pathname: '/ride/[rideId]', params: { rideId: String(r.id) } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ride ${r?.originLabel ?? req.pickupLabel ?? 'Pickup'} to ${r?.destinationLabel ?? req.dropoffLabel ?? 'Dropoff'}, ${sm.label}`}
+                >
                   <View style={styles.rowBetween}>
                     <Text style={styles.route} numberOfLines={1}>{r?.originLabel ?? req.pickupLabel ?? 'Pickup'} → {r?.destinationLabel ?? req.dropoffLabel ?? 'Dropoff'}</Text>
                     <View style={[styles.chip, { backgroundColor: sm.bg }]}><Text style={[styles.chipText, { color: sm.color }]}>{sm.label}</Text></View>

@@ -4,6 +4,8 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import useAuth from '../src/hooks/useAuth';
+import ToastHost from '../src/components/common/Toast';
+import DemoModeBanner from '../src/components/common/DemoModeBanner';
 import { BACKGROUND } from '../src/constants/colors';
 
 export default function RootLayout() {
@@ -44,6 +46,8 @@ export default function RootLayout() {
         <Stack.Screen name="(onboarding)" />
         <Stack.Screen name="(tabs)" />
       </Stack>
+      <ToastHost />
+      <DemoModeBanner />
     </SafeAreaProvider>
   );
 }

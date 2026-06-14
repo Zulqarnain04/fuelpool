@@ -9,6 +9,7 @@ import {
   ArrowLeft, Star, ShieldCheck, Users, Navigation, MapPin, Flag, WifiOff, RefreshCw,
 } from 'lucide-react-native';
 import LeafletMap from '../../src/components/common/LeafletMap';
+import { toast } from '../../src/components/common/Toast';
 import { statusMeta, fmtRideTime } from '../../src/components/ride/rideUtils';
 import useAuth from '../../src/hooks/useAuth';
 import { carpoolApi, userApi } from '../../src/services/api';
@@ -84,7 +85,7 @@ export default function RideDetail() {
         dropoffLat: dLat, dropoffLng: dLng, dropoffLabel: ride.destinationLabel,
       });
       setRequested(true);
-      Alert.alert('Requested', 'Your ride request has been sent to the driver.');
+      toast.success('Ride request sent!');
     } catch (e: any) {
       Alert.alert('Error', e?.response?.data?.message ?? 'Could not send request.');
     } finally {
@@ -113,7 +114,7 @@ export default function RideDetail() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.topBar}>
-        <Pressable onPress={() => router.back()} hitSlop={10}><ArrowLeft size={22} color={TEXT_PRIMARY} /></Pressable>
+        <Pressable onPress={() => router.back()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back"><ArrowLeft size={22} color={TEXT_PRIMARY} /></Pressable>
         <Text style={styles.topTitle}>Ride Detail</Text>
         <View style={[styles.chip, { backgroundColor: sm.bg }]}><Text style={[styles.chipText, { color: sm.color }]}>{sm.label}</Text></View>
       </View>
@@ -180,12 +181,24 @@ export default function RideDetail() {
               <Text style={styles.cardTitle}>Your pickup point</Text>
               <View style={styles.chipRow}>
                 {CAMPUS_LOCATIONS.slice(0, 5).map((c) => (
-                  <Pressable key={c.label} onPress={() => setPickup({ label: c.label, lat: c.lat, lng: c.lng })} style={[styles.placeChip, pickup?.label === c.label && styles.placeChipActive]}>
+                  <Pressable
+                    key={c.label}
+                    onPress={() => setPickup({ label: c.label, lat: c.lat, lng: c.lng })}
+                    style={[styles.placeChip, pickup?.label === c.label && styles.placeChipActive]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Pickup point ${c.label}${pickup?.label === c.label ? ', selected' : ''}`}
+                  >
                     <Text style={[styles.placeChipText, pickup?.label === c.label && { color: CARD }]} numberOfLines={1}>{c.label}</Text>
                   </Pressable>
                 ))}
               </View>
-              <Pressable style={[styles.primaryBtn, (requested || seats <= 0) && styles.btnDisabled]} onPress={request} disabled={busy || requested || seats <= 0}>
+              <Pressable
+                style={[styles.primaryBtn, (requested || seats <= 0) && styles.btnDisabled]}
+                onPress={request}
+                disabled={busy || requested || seats <= 0}
+                accessibilityRole="button"
+                accessibilityLabel={requested ? 'Request sent' : seats <= 0 ? 'Ride full' : 'Request this ride'}
+              >
                 {busy ? <ActivityIndicator color={CARD} /> : <Text style={styles.primaryBtnText}>{requested ? 'Request sent ✓' : seats <= 0 ? 'Ride full' : 'Request this ride'}</Text>}
               </Pressable>
             </View>
@@ -199,18 +212,40 @@ export default function RideDetail() {
               <View style={{ gap: 10, marginTop: 12 }}>
                 {(ride.status === 'OPEN' || ride.status === 'FULL') && (
                   <>
-                    <Pressable style={styles.primaryBtn} onPress={() => driverAction(() => carpoolApi.startRide(ride.id), (r) => openMaps(r.googleMapsUrl))} disabled={busy}>
+                    <Pressable
+                      style={styles.primaryBtn}
+                      onPress={() => driverAction(() => carpoolApi.startRide(ride.id), (r) => openMaps(r.googleMapsUrl))}
+                      disabled={busy}
+                      accessibilityRole="button"
+                      accessibilityLabel="Start ride and open Google Maps"
+                    >
                       <Navigation size={16} color={CARD} /><Text style={styles.primaryBtnText}>  Start & open Maps</Text>
                     </Pressable>
-                    <Pressable style={styles.dangerBtn} onPress={() => driverAction(() => carpoolApi.cancelRide(ride.id))} disabled={busy}>
+                    <Pressable
+                      style={styles.dangerBtn}
+                      onPress={() => driverAction(() => carpoolApi.cancelRide(ride.id))}
+                      disabled={busy}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancel ride"
+                    >
                       <Text style={styles.dangerText}>Cancel ride</Text>
                     </Pressable>
                   </>
                 )}
                 {ride.status === 'IN_PROGRESS' && (
                   <>
-                    <Pressable style={styles.outlineBtn} onPress={() => openMaps()}><Navigation size={16} color={FP_PRIMARY} /><Text style={styles.outlineText}>  Open in Google Maps</Text></Pressable>
-                    <Pressable style={styles.primaryBtn} onPress={() => driverAction(() => carpoolApi.completeRide(ride.id))} disabled={busy}><Text style={styles.primaryBtnText}>Complete ride</Text></Pressable>
+                    <Pressable style={styles.outlineBtn} onPress={() => openMaps()} accessibilityRole="button" accessibilityLabel="Open route in Google Maps">
+                      <Navigation size={16} color={FP_PRIMARY} /><Text style={styles.outlineText}>  Open in Google Maps</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.primaryBtn}
+                      onPress={() => driverAction(() => carpoolApi.completeRide(ride.id), () => toast.success('Ride completed!'))}
+                      disabled={busy}
+                      accessibilityRole="button"
+                      accessibilityLabel="Mark ride as completed"
+                    >
+                      <Text style={styles.primaryBtnText}>Complete ride</Text>
+                    </Pressable>
                   </>
                 )}
               </View>
@@ -219,7 +254,7 @@ export default function RideDetail() {
 
           {/* passenger rate after completion */}
           {!isDriver && ride.status === 'COMPLETED' && (
-            <Pressable style={styles.primaryBtn} onPress={() => setRateOpen(true)}>
+            <Pressable style={styles.primaryBtn} onPress={() => setRateOpen(true)} accessibilityRole="button" accessibilityLabel="Rate your driver">
               <Star size={16} color={CARD} fill={CARD} /><Text style={styles.primaryBtnText}>  Rate your driver</Text>
             </Pressable>
           )}
@@ -258,14 +293,26 @@ function RateModal({ visible, onClose, onSubmit }: { visible: boolean; onClose: 
           <Text style={styles.modalTitle}>Rate your ride</Text>
           <View style={styles.starsRow}>
             {[1, 2, 3, 4, 5].map((s) => (
-              <Pressable key={s} onPress={() => setRating(s)} hitSlop={6}>
+              <Pressable key={s} onPress={() => setRating(s)} hitSlop={6} accessibilityRole="button" accessibilityLabel={`Rate ${s} star${s === 1 ? '' : 's'}`}>
                 <Star size={34} color="#FBBF24" fill={s <= rating ? '#FBBF24' : 'transparent'} />
               </Pressable>
             ))}
           </View>
-          <TextInput style={styles.noteInput} value={note} onChangeText={setNote} placeholder="Add a note (optional)" placeholderTextColor={TEXT_LIGHT} multiline />
-          <Pressable style={styles.primaryBtn} onPress={() => onSubmit(rating, note)}><Text style={styles.primaryBtnText}>Submit</Text></Pressable>
-          <Pressable onPress={onClose} style={{ marginTop: 10 }}><Text style={styles.cancelText}>Cancel</Text></Pressable>
+          <TextInput
+            style={styles.noteInput}
+            value={note}
+            onChangeText={setNote}
+            placeholder="Add a note (optional)"
+            placeholderTextColor={TEXT_LIGHT}
+            multiline
+            accessibilityLabel="Rating note"
+          />
+          <Pressable style={styles.primaryBtn} onPress={() => onSubmit(rating, note)} accessibilityRole="button" accessibilityLabel="Submit rating">
+            <Text style={styles.primaryBtnText}>Submit</Text>
+          </Pressable>
+          <Pressable onPress={onClose} style={{ marginTop: 10 }} accessibilityRole="button" accessibilityLabel="Cancel rating">
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>

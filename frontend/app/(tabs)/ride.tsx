@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Location from 'expo-location';
 import { CalendarClock } from 'lucide-react-native';
+import ErrorBoundary from '../../src/components/common/ErrorBoundary';
 import LeafletMap from '../../src/components/common/LeafletMap';
 import FindRide from '../../src/components/ride/FindRide';
 import OfferRide from '../../src/components/ride/OfferRide';
@@ -21,6 +22,14 @@ type Tab = 'find' | 'offer' | 'mine';
 interface Coords { lat: number; lng: number; }
 
 export default function RideTab() {
+  return (
+    <ErrorBoundary>
+      <RideTabContent />
+    </ErrorBoundary>
+  );
+}
+
+function RideTabContent() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('find');
   const [userLoc, setUserLoc] = useState<Coords | null>(null);
@@ -86,7 +95,7 @@ export default function RideTab() {
             <Text style={styles.mapTitle}>Seat Optimizer</Text>
             <View style={styles.l2Badge}><Text style={styles.l2Text}>L2</Text></View>
           </View>
-          <Pressable style={styles.routineBtn} onPress={() => router.push('/routines')}>
+          <Pressable style={styles.routineBtn} onPress={() => router.push('/routines')} accessibilityRole="button" accessibilityLabel="Open carpool routines">
             <CalendarClock size={20} color={FP_CARPOOL} />
           </Pressable>
         </View>
@@ -104,7 +113,13 @@ export default function RideTab() {
           { id: 'offer', label: 'Offer Ride' },
           { id: 'mine', label: 'My Rides' },
         ] as { id: Tab; label: string }[]).map((t) => (
-          <Pressable key={t.id} onPress={() => setTab(t.id)} style={[styles.tabBtn, tab === t.id && styles.tabBtnActive]}>
+          <Pressable
+            key={t.id}
+            onPress={() => setTab(t.id)}
+            style={[styles.tabBtn, tab === t.id && styles.tabBtnActive]}
+            accessibilityRole="button"
+            accessibilityLabel={`${t.label} tab${tab === t.id ? ', selected' : ''}`}
+          >
             <Text style={[styles.tabBtnText, tab === t.id && styles.tabBtnTextActive]}>{t.label}</Text>
           </Pressable>
         ))}

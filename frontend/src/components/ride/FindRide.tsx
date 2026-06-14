@@ -77,7 +77,13 @@ export default function FindRide({ userLoc }: { userLoc: Coords | null }) {
 
         <View style={styles.searchRow}>
           <View style={styles.nowChip}><Text style={styles.nowText}>Now</Text></View>
-          <Pressable style={styles.searchBtn} onPress={search} disabled={loading}>
+          <Pressable
+            style={styles.searchBtn}
+            onPress={search}
+            disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={loading ? 'Finding ride matches' : 'Find ride matches'}
+          >
             {loading ? <ActivityIndicator color={CARD} size="small" /> : <Search size={16} color={CARD} />}
             <Text style={styles.searchBtnText}>{loading ? 'Matching…' : 'Find matches'}</Text>
           </Pressable>
@@ -106,16 +112,26 @@ export default function FindRide({ userLoc }: { userLoc: Coords | null }) {
 
 function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.chip, active && styles.chipActive]}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}${active ? ', selected' : ''}`}
+    >
       <Text style={[styles.chipText, active && { color: CARD }]} numberOfLines={1}>{label}</Text>
     </Pressable>
   );
 }
 
-function MatchCard({ m, onPress }: { m: RideMatch; onPress: () => void }) {
+const MatchCard = React.memo(function MatchCard({ m, onPress }: { m: RideMatch; onPress: () => void }) {
   const seats = m.availableSeats ?? 0;
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable
+      style={styles.card}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Ride with ${m.driverName ?? 'driver'}, ${Math.round(m.matchScore ?? 0)}% match, ${rm(m.farePerPerson)}, ${seats} seat${seats === 1 ? '' : 's'} available`}
+    >
       <View style={styles.cardTop}>
         <View style={styles.avatar}><Text style={styles.avatarText}>{initialsOf(m.driverName)}</Text></View>
         <View style={{ flex: 1 }}>
@@ -159,7 +175,7 @@ function MatchCard({ m, onPress }: { m: RideMatch; onPress: () => void }) {
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },

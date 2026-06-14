@@ -357,6 +357,49 @@ export interface RideUserSummary {
   gender?: Gender;
 }
 
+// ---- ECOTRACK (L3) ----
+export interface EcoLeaderRow {
+  id?: number;
+  user?: RideUserSummary;
+  ecoScore?: Num;
+  carbonSavedKg?: Num;
+  totalTrips?: number;
+  carpoolTrips?: number;
+  communityRank?: number;
+  weekStartDate?: string;
+}
+
+export interface EcoHabits {
+  avgEfficiencyKmPerL?: number;
+  vehicleDefaultEfficiency?: number;
+  efficiencyTrend?: number[];
+  efficiencyStatus?: 'GOOD' | 'AVERAGE' | 'BELOW' | string;
+  carpoolRatePercent?: number;
+  carpoolTripsThisWeek?: number;
+  totalTripsThisWeek?: number;
+  budi95?: { usedLitres?: number; limitLitres?: number; remainingLitres?: number; limitExceeded?: boolean };
+}
+
+export interface EcoMonthly {
+  month?: string;
+  totalSavedVsSolo?: number;
+  totalSavedVsGrab?: number;
+  totalCarbonSavedKg?: number;
+  totalCarpoolTrips?: number;
+}
+
+export interface CurrentUser {
+  id?: number;
+  name?: string;
+  email?: string;
+  gender?: Gender;
+  studentId?: string;
+  isVerified?: boolean;
+  verified?: boolean;
+  driverRating?: Num;
+  passengerRating?: Num;
+}
+
 export interface RideSummary {
   id: number;
   driver?: RideUserSummary;
