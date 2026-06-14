@@ -26,6 +26,8 @@ public interface RideRepository extends JpaRepository<Ride, Long> {
 
     List<Ride> findByDriverIdAndStatusNot(Long driverId, Ride.RideStatus status);
 
+    List<Ride> findByDriverIdIn(List<Long> driverIds);
+
     @Modifying
     @Transactional
     void deleteAllByDriverIdIn(List<Long> driverIds);

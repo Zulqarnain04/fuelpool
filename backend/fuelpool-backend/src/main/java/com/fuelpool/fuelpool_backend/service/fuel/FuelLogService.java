@@ -10,7 +10,6 @@ import com.fuelpool.fuelpool_backend.model.Vehicle;
 import com.fuelpool.fuelpool_backend.repository.FuelLogRepository;
 import com.fuelpool.fuelpool_backend.repository.FuelPriceRepository;
 import com.fuelpool.fuelpool_backend.repository.VehicleRepository;
-import com.fuelpool.fuelpool_backend.service.ollama.OllamaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,7 +35,6 @@ public class FuelLogService {
     private final FuelPriceRepository fuelPriceRepository;
     private final FuelPriceService fuelPriceService;
     private final TrendPredictionService trendPredictionService;
-    private final OllamaService ollamaService;
 
     public FuelLog save(User user, FuelLogRequest req) {
         Vehicle vehicle = null;
@@ -44,7 +42,7 @@ public class FuelLogService {
             vehicle = vehicleRepository.findById(req.getVehicleId())
                     .orElseThrow(() -> new ResourceNotFoundException("Vehicle", req.getVehicleId()));
         } else {
-            vehicle = vehicleRepository.findByUserIdAndIsPrimaryTrue(user.getId()).orElse(null);
+            vehicle = vehicleRepository.findFirstByUserIdAndIsPrimaryTrue(user.getId()).orElse(null);
         }
 
         // Auto-calc price/total if only one is given
@@ -115,7 +113,7 @@ public class FuelLogService {
     }
 
     public RefuelRecommendationResponse getRecommendation(User user) {
-        Vehicle vehicle = vehicleRepository.findByUserIdAndIsPrimaryTrue(user.getId()).orElse(null);
+        Vehicle vehicle = vehicleRepository.findFirstByUserIdAndIsPrimaryTrue(user.getId()).orElse(null);
 
         Vehicle.FuelType fuelType = vehicle != null ? vehicle.getFuelType() : Vehicle.FuelType.RON97;
         var trend = trendPredictionService.predict(fuelType);
@@ -223,20 +221,38 @@ public class FuelLogService {
                 .orElse(4.35);
     }
 
+    // Fast, templated refuel reason. Intentionally NOT LLM-backed: this runs on the
+    // dashboard's hot path, and a synchronous Ollama call (cold model can take 15–30s)
+    // would block the home screen past the client timeout. The AI showcase lives in the
+    // weekly eco summary instead.
     private String generateRefuelReason(String action, double remaining, double remainKm,
             double dailyKm, double daysOfRange, String direction, double slope,
             double currentPrice, double predictedPrice, double suggestedAmount,
             double savings, String fuelType) {
-        String prompt = String.format(
-            "A Malaysian driver has %.1fL of %s remaining (%.0f km, ~%.1f days at %.0f km/day). " +
-            "Price trend: %s (%.1f sen/week). Current: RM %.2f, next week: RM %.2f. " +
-            "Recommendation: %s — fill %.1fL, estimated savings RM %.2f. " +
-            "Write ONE sentence. Use specific numbers. Max 20 words.",
-            remaining, fuelType, remainKm, daysOfRange, dailyKm,
-            direction, slope * 100, currentPrice, predictedPrice,
-            action, suggestedAmount, savings);
-        return ollamaService.generate(
-            "You are a concise Malaysian fuel advisor. One sentence only.", prompt, 0.3);
+        String fuel = fuelType.replace("_", " ");
+        switch (action) {
+            case "FILL_NOW":
+                if ("RISING".equals(direction) && savings > 0) {
+                    return String.format(
+                        "Prices are rising — top up about %.0fL now to save roughly RM %.2f before next week.",
+                        suggestedAmount, savings);
+                }
+                return String.format(
+                    "Only ~%.0f km of range left — fill about %.0fL of %s soon to avoid running low.",
+                    remainKm, suggestedAmount, fuel);
+            case "WAIT":
+                return String.format(
+                    "Prices are trending down and you still have ~%.0f km of range, so waiting could save about RM %.2f.",
+                    remainKm, savings);
+            case "FILL_SOON":
+                return String.format(
+                    "About %.0f km left (~%.1f days) — plan to refuel around %.0fL of %s soon.",
+                    remainKm, daysOfRange, suggestedAmount, fuel);
+            default:
+                return String.format(
+                    "Fuel level is healthy with ~%.0f km of range — no need to refuel just yet.",
+                    remainKm);
+        }
     }
 
     public Page<FuelLog> getLogs(User user, Pageable pageable) {

@@ -24,6 +24,10 @@ public class VehicleController {
     @PostMapping
     public ResponseEntity<Vehicle> create(@AuthenticationPrincipal User user,
                                           @Valid @RequestBody VehicleRequest req) {
+        // Keep exactly one primary vehicle per user: demote any existing primary first.
+        if (req.isPrimary()) {
+            vehicleRepository.clearPrimaryForUser(user.getId());
+        }
         Vehicle v = Vehicle.builder()
                 .user(user)
                 .make(req.getMake())

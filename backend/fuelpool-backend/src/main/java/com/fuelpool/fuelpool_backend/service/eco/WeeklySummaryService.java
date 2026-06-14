@@ -58,7 +58,7 @@ public class WeeklySummaryService {
 
     public void generateForUser(EcoWeeklyStats stats) {
         User user = stats.getUser();
-        var vehicle = vehicleRepository.findByUserIdAndIsPrimaryTrue(user.getId()).orElse(null);
+        var vehicle = vehicleRepository.findFirstByUserIdAndIsPrimaryTrue(user.getId()).orElse(null);
         double defaultEff = vehicle != null ? vehicle.getAvgEfficiency().doubleValue() : 15.0;
 
         String userPrompt = String.format(

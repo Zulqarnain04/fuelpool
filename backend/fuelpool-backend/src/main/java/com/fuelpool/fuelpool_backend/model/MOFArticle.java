@@ -47,6 +47,18 @@ public class MOFArticle {
     @Column(length = 500)
     private String userTip;
 
+    // ── AI Intelligence Engine fields ──
+    private Double aiConfidence;            // extraction confidence 0-100
+
+    @Column(length = 100)
+    private String articleType;            // e.g. weekly_price_update, subsidy_change, policy
+
+    @Column(columnDefinition = "TEXT")
+    private String summary;                // AI plain-language summary
+
+    @Column(columnDefinition = "TEXT")
+    private String impactAnalysis;         // AI impact JSON: { impactLevel, estimatedCostImpact, driverAdvice, summary }
+
     @Builder.Default
     private boolean isNotified = false;
 

@@ -27,6 +27,8 @@ public class DemoController {
     private final FuelLogRepository fuelLogRepo;
     private final MOFArticleRepository mofRepo;
     private final TripPassengerRepository tripPassengerRepo;
+    private final RideRequestRepository rideRequestRepo;
+    private final RoutineRepository routineRepo;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
@@ -47,8 +49,17 @@ public class DemoController {
         List<User> existing = userRepo.findAllByEmailIn(emails);
         if (!existing.isEmpty()) {
             List<Long> ids = existing.stream().map(User::getId).toList();
+
+            // Delete child rows before their parents (rides/users) to satisfy FK
+            // constraints. ride_requests and routines were previously missed.
             tripPassengerRepo.deleteAllByDriverIdIn(ids);
             tripPassengerRepo.deleteAllByPassengerIdIn(ids);
+
+            List<Long> rideIds = rideRepo.findByDriverIdIn(ids).stream().map(Ride::getId).toList();
+            if (!rideIds.isEmpty()) rideRequestRepo.deleteByRideIdIn(rideIds);
+            rideRequestRepo.deleteByPassengerIdIn(ids);
+            routineRepo.deleteByUserIdIn(ids);
+
             ecoRepo.deleteAllByUserIdIn(ids);
             fuelLogRepo.deleteAllByUserIdIn(ids);
             rideRepo.deleteAllByDriverIdIn(ids);
@@ -57,6 +68,11 @@ public class DemoController {
                 .filter(m -> m.getTitle() != null && m.getTitle().startsWith("[DEMO]"))
                 .toList());
             userRepo.deleteAll(existing);
+
+            // Force the deletes to hit the DB now. Without this, Hibernate flushes
+            // all INSERTs before DELETEs at commit, so re-inserting the same demo
+            // emails below collides with the not-yet-deleted rows (duplicate key).
+            userRepo.flush();
         }
 
         String pw = passwordEncoder.encode("password123");
