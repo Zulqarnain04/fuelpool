@@ -20,12 +20,17 @@ public class OllamaService {
     private final RestClient ollamaRestClient;
 
     public String generate(String systemPrompt, String userPrompt) {
+        return generate(systemPrompt, userPrompt, 0.4);
+    }
+
+    public String generate(String systemPrompt, String userPrompt, double temperature) {
         String fullPrompt = "System: " + systemPrompt + "\n\nUser: " + userPrompt;
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("model", ollamaConfig.getModel());
         requestBody.put("prompt", fullPrompt);
         requestBody.put("stream", false);
+        requestBody.put("options", Map.of("temperature", temperature));
 
         try {
             Map<String, Object> response = ollamaRestClient

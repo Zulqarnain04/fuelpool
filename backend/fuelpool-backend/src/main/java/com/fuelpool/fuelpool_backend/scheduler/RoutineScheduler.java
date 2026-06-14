@@ -76,10 +76,5 @@ public class RoutineScheduler {
             }
         }
 
-        if ((routine.getRolePreference() == Routine.RolePreference.DRIVER
-                || routine.getRolePreference() == Routine.RolePreference.EITHER)
-                && !rideService.hasPostedRideToday(user.getId())) {
-            log.info("Routine DRIVER auto-post not yet implemented (requires vehicle selection logic)");
-        }
     }
 }

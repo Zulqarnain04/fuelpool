@@ -5,12 +5,12 @@ import com.fuelpool.fuelpool_backend.dto.response.RefuelRecommendationResponse;
 import com.fuelpool.fuelpool_backend.exception.BusinessException;
 import com.fuelpool.fuelpool_backend.exception.ResourceNotFoundException;
 import com.fuelpool.fuelpool_backend.model.FuelLog;
-import com.fuelpool.fuelpool_backend.model.FuelPrice;
 import com.fuelpool.fuelpool_backend.model.User;
 import com.fuelpool.fuelpool_backend.model.Vehicle;
 import com.fuelpool.fuelpool_backend.repository.FuelLogRepository;
 import com.fuelpool.fuelpool_backend.repository.FuelPriceRepository;
 import com.fuelpool.fuelpool_backend.repository.VehicleRepository;
+import com.fuelpool.fuelpool_backend.service.ollama.OllamaService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +35,8 @@ public class FuelLogService {
     private final VehicleRepository vehicleRepository;
     private final FuelPriceRepository fuelPriceRepository;
     private final FuelPriceService fuelPriceService;
+    private final TrendPredictionService trendPredictionService;
+    private final OllamaService ollamaService;
 
     public FuelLog save(User user, FuelLogRequest req) {
         Vehicle vehicle = null;
@@ -112,44 +116,127 @@ public class FuelLogService {
 
     public RefuelRecommendationResponse getRecommendation(User user) {
         Vehicle vehicle = vehicleRepository.findByUserIdAndIsPrimaryTrue(user.getId()).orElse(null);
+
+        Vehicle.FuelType fuelType = vehicle != null ? vehicle.getFuelType() : Vehicle.FuelType.RON97;
+        var trend = trendPredictionService.predict(fuelType);
+        double slope = trend.getSlope();
+
         if (vehicle == null) {
             return RefuelRecommendationResponse.builder()
-                    .action("NORMAL")
-                    .reason("No vehicle set up. Add a vehicle to get fuel level estimates.")
-                    .build();
+                    .action(trend.getRecommendation()).reason(trend.getReason())
+                    .confidence(computeConfidence(slope)).build();
         }
 
         FuelLog lastLog = fuelLogRepository.findTopByVehicleIdOrderByLogDateDesc(vehicle.getId()).orElse(null);
         if (lastLog == null) {
             return RefuelRecommendationResponse.builder()
-                    .action("NORMAL")
-                    .reason("Log your first fill-up to get fuel level estimates.")
-                    .build();
+                    .action(trend.getRecommendation())
+                    .reason(trend.getReason() + " Log your first fill-up to get fuel level estimates.")
+                    .confidence(computeConfidence(slope)).build();
         }
 
-        // Estimate km driven since last fill (15km/day for demo)
-        long daysSinceFill = java.time.temporal.ChronoUnit.DAYS.between(lastLog.getLogDate().toLocalDate(), java.time.LocalDate.now());
-        double kmDrivenEstimate = daysSinceFill * 15.0;
-        double avgEfficiency = vehicle.getAvgEfficiency().doubleValue();
-        double fuelUsedEstimate = kmDrivenEstimate / avgEfficiency;
-        double litresFilled = lastLog.getLitresFilled().doubleValue();
         double tankCapacity = vehicle.getTankCapacity().doubleValue();
+        double efficiency   = vehicle.getAvgEfficiency().doubleValue();
+        long   daysSince    = ChronoUnit.DAYS.between(lastLog.getLogDate().toLocalDate(), LocalDate.now());
+        double dailyKm      = computeDailyKmEstimate(user.getId());
+        double fuelUsed     = (daysSince * dailyKm) / efficiency;
+        double remaining    = Math.max(0,
+            (lastLog.isFullTank() ? tankCapacity : lastLog.getLitresFilled().doubleValue()) - fuelUsed);
+        double remainPct    = (remaining / tankCapacity) * 100;
+        double remainKm     = remaining * efficiency;
+        double daysOfRange  = dailyKm > 0 ? remainKm / dailyKm : 0;
+        int behaviourScore  = (int) Math.min(100, Math.round((efficiency / 16.0) * 100));
 
-        double remainingFuel = lastLog.isFullTank()
-                ? tankCapacity - fuelUsedEstimate
-                : litresFilled - fuelUsedEstimate;
-        remainingFuel = Math.max(0, remainingFuel);
+        double currentPrice      = getCurrentPrice(fuelType);
+        double predictedNextWeek = trend.getPredicted().isEmpty() ? currentPrice : trend.getPredicted().get(0);
 
-        double remainingPct = (remainingFuel / tankCapacity) * 100;
-        double remainingKm = remainingFuel * avgEfficiency;
+        String action;
+        double suggestedAmount;
+        double estimatedSavings;
+
+        if (remainPct < 20) {
+            action = "FILL_NOW";
+            suggestedAmount = round(tankCapacity - remaining);
+            estimatedSavings = 0;
+        } else if ("RISING".equals(trend.getDirection()) && remainPct < 60) {
+            action = "FILL_NOW";
+            suggestedAmount = round(tankCapacity - remaining);
+            estimatedSavings = round(Math.max(0, predictedNextWeek - currentPrice) * suggestedAmount);
+        } else if ("FALLING".equals(trend.getDirection()) && remainPct > 30) {
+            action = "WAIT";
+            double litresFor3Days = (3 * dailyKm) / efficiency;
+            suggestedAmount = round(Math.max(0, litresFor3Days - remaining));
+            estimatedSavings = round(Math.max(0, currentPrice - predictedNextWeek) * (tankCapacity - remaining));
+        } else if (remainPct < 40) {
+            action = "FILL_SOON";
+            suggestedAmount = round(tankCapacity * 0.75 - remaining);
+            estimatedSavings = 0;
+        } else {
+            action = "NORMAL";
+            suggestedAmount = 0;
+            estimatedSavings = 0;
+        }
+
+        String reason = generateRefuelReason(action, remaining, remainKm, dailyKm,
+            daysOfRange, trend.getDirection(), slope, currentPrice,
+            predictedNextWeek, suggestedAmount, estimatedSavings, fuelType.name());
 
         return RefuelRecommendationResponse.builder()
-                .action("NORMAL")
-                .reason("Fill up as needed.")
-                .remainingFuelPct(Math.round(remainingPct * 10.0) / 10.0)
-                .remainingKm(Math.round(remainingKm * 10.0) / 10.0)
-                .remainingLitres(Math.round(remainingFuel * 10.0) / 10.0)
+                .action(action)
+                .reason(reason != null ? reason : trend.getReason())
+                .remainingFuelPct(round(remainPct))
+                .remainingKm(round(remainKm))
+                .remainingLitres(round(remaining))
+                .confidence(computeConfidence(slope))
+                .suggestedAmount(Math.max(0, suggestedAmount))
+                .estimatedSavings(estimatedSavings)
+                .daysOfRange(round(daysOfRange))
+                .behaviourScore(behaviourScore)
                 .build();
+    }
+
+    private double round(double v) { return Math.round(v * 10.0) / 10.0; }
+
+    private double computeDailyKmEstimate(Long userId) {
+        List<FuelLog> logs = fuelLogRepository
+                .findTop3ByUserIdAndDistanceSinceLastIsNotNullOrderByLogDateDesc(userId);
+        if (logs.isEmpty()) return 22.0;
+        return logs.stream()
+                .mapToDouble(l -> l.getDistanceSinceLast() != null && l.getDistanceSinceLast() > 0
+                        ? l.getDistanceSinceLast() / 14.0 : 22.0)
+                .average().orElse(22.0);
+    }
+
+    private int computeConfidence(double slope) {
+        int c = 65;
+        double abs = Math.abs(slope);
+        if (abs > 0.20) c += 15;
+        else if (abs > 0.10) c += 10;
+        else if (abs > 0.05) c += 5;
+        return Math.min(95, Math.max(40, c));
+    }
+
+    private double getCurrentPrice(Vehicle.FuelType fuelType) {
+        return fuelPriceRepository.findTopByOrderByPriceDateDesc()
+                .map(p -> { BigDecimal v = fuelPriceService.getPriceForFuelType(p, fuelType);
+                            return v != null ? v.doubleValue() : 4.35; })
+                .orElse(4.35);
+    }
+
+    private String generateRefuelReason(String action, double remaining, double remainKm,
+            double dailyKm, double daysOfRange, String direction, double slope,
+            double currentPrice, double predictedPrice, double suggestedAmount,
+            double savings, String fuelType) {
+        String prompt = String.format(
+            "A Malaysian driver has %.1fL of %s remaining (%.0f km, ~%.1f days at %.0f km/day). " +
+            "Price trend: %s (%.1f sen/week). Current: RM %.2f, next week: RM %.2f. " +
+            "Recommendation: %s — fill %.1fL, estimated savings RM %.2f. " +
+            "Write ONE sentence. Use specific numbers. Max 20 words.",
+            remaining, fuelType, remainKm, daysOfRange, dailyKm,
+            direction, slope * 100, currentPrice, predictedPrice,
+            action, suggestedAmount, savings);
+        return ollamaService.generate(
+            "You are a concise Malaysian fuel advisor. One sentence only.", prompt, 0.3);
     }
 
     public Page<FuelLog> getLogs(User user, Pageable pageable) {

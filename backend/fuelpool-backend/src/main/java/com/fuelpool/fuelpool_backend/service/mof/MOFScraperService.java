@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -21,41 +20,38 @@ public class MOFScraperService {
         try {
             Document doc = Jsoup.connect(MOF_URL)
                     .userAgent("Mozilla/5.0 (compatible; FuelPool/1.0)")
-                    .timeout(10_000)
-                    .get();
+                    .timeout(10_000).get();
 
-            Elements links = doc.select("a[href]");
-            for (Element link : links) {
-                String text = link.text().toLowerCase();
-                if (text.contains("petrol") || text.contains("ron") ||
-                        text.contains("fuel") || text.contains("harga") || text.contains("minyak")) {
+            int checked = 0;
+            for (Element link : doc.select("a[href]")) {
+                if (checked >= 5) break;
+                String href = link.absUrl("href");
+                if (href.isBlank() || !href.contains("mof.gov.my")) continue;
 
-                    String articleUrl = link.absUrl("href");
-                    log.info("Found MOF fuel article: {}", articleUrl);
+                try {
+                    String content = Jsoup.connect(href)
+                            .userAgent("Mozilla/5.0").timeout(10_000)
+                            .get().body().text();
+                    String truncated = content.length() > 1500 ? content.substring(0, 1500) : content;
 
-                    String content = Jsoup.connect(articleUrl)
-                            .userAgent("Mozilla/5.0 (compatible; FuelPool/1.0)")
-                            .timeout(10_000)
-                            .get()
-                            .body()
-                            .text();
-
-                    articleParser.parseAndSave(link.text(), articleUrl, content);
-                    return;
+                    boolean wasFuel = articleParser.classifyAndSave(link.text(), href, truncated);
+                    if (wasFuel) { log.info("Fuel article saved: {}", link.text()); return; }
+                    checked++;
+                } catch (Exception e) {
+                    log.warn("Failed to fetch {}: {}", href, e.getMessage());
                 }
             }
-            log.warn("No fuel price article found on MOF page");
+            log.warn("No fuel article found in top 5 articles");
         } catch (Exception e) {
-            log.error("MOF scraper error: {}", e.getMessage());
+            log.error("MOF scrape failed: {}", e.getMessage());
             useFallbackArticle();
         }
     }
 
     private void useFallbackArticle() {
-        String fallback = "Kementerian Kewangan Malaysia mengumumkan harga runcit minyak untuk minggu " +
-                "12 Jun 2026 hingga 18 Jun 2026. RON95 kekal pada RM 2.05, RON97 naik sebanyak 10 sen " +
-                "kepada RM 4.45, dan diesel kekal pada RM 2.15. Harga berkuat kuasa mulai 12 Jun 2026.";
-        log.info("Using fallback MOF article for demo");
-        articleParser.parseAndSave("Harga Runcit Minyak (Demo)", MOF_URL, fallback);
+        String fallback = "Kementerian Kewangan Malaysia mengumumkan harga runcit minyak " +
+            "minggu 12 Jun 2026. RON95 kekal RM 2.05, RON97 naik 10 sen kepada RM 4.45, " +
+            "diesel kekal RM 2.15. Berkuat kuasa 12 Jun 2026.";
+        articleParser.classifyAndSave("Harga Runcit Minyak (Demo)", MOF_URL, fallback);
     }
 }

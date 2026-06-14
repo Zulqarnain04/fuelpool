@@ -3,7 +3,10 @@ package com.fuelpool.fuelpool_backend.controller;
 import com.fuelpool.fuelpool_backend.dto.request.RidePostRequest;
 import com.fuelpool.fuelpool_backend.dto.response.RideMatchResponse;
 import com.fuelpool.fuelpool_backend.model.Ride;
+import com.fuelpool.fuelpool_backend.model.RideRequest;
 import com.fuelpool.fuelpool_backend.model.User;
+import com.fuelpool.fuelpool_backend.repository.RideRepository;
+import com.fuelpool.fuelpool_backend.repository.RideRequestRepository;
 import com.fuelpool.fuelpool_backend.service.carpool.MatchingService;
 import com.fuelpool.fuelpool_backend.service.carpool.RideService;
 import com.fuelpool.fuelpool_backend.service.carpool.RouteService;
@@ -26,6 +29,20 @@ public class RideController {
     private final RideService rideService;
     private final MatchingService matchingService;
     private final RouteService routeService;
+    private final RideRepository rideRepository;
+    private final RideRequestRepository rideRequestRepository;
+
+    @GetMapping("/mine")
+    public ResponseEntity<Map<String, Object>> myRides(@AuthenticationPrincipal User user) {
+        List<Ride> asDriver = rideRepository.findByDriverIdAndStatusNot(
+                user.getId(), Ride.RideStatus.CANCELLED);
+        List<RideRequest> asPassenger = rideRequestRepository
+                .findByPassengerIdOrderByCreatedAtDesc(user.getId());
+        return ResponseEntity.ok(Map.of(
+                "asDriver", asDriver,
+                "asPassenger", asPassenger
+        ));
+    }
 
     @GetMapping
     public ResponseEntity<List<Ride>> list(

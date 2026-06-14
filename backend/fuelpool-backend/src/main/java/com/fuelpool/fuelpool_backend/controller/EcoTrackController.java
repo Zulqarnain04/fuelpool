@@ -10,6 +10,7 @@ import com.fuelpool.fuelpool_backend.repository.FuelLogRepository;
 import com.fuelpool.fuelpool_backend.repository.VehicleRepository;
 import com.fuelpool.fuelpool_backend.service.eco.CarbonService;
 import com.fuelpool.fuelpool_backend.service.eco.LeaderboardService;
+import com.fuelpool.fuelpool_backend.service.eco.WeeklySummaryService;
 import com.fuelpool.fuelpool_backend.service.fuel.Budi95Service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
@@ -34,6 +36,7 @@ public class EcoTrackController {
     private final LeaderboardService leaderboardService;
     private final CarbonService carbonService;
     private final Budi95Service budi95Service;
+    private final WeeklySummaryService weeklySummaryService;
 
     @GetMapping("/weekly")
     public ResponseEntity<EcoDashboardResponse> weekly(@AuthenticationPrincipal User user,
@@ -66,6 +69,16 @@ public class EcoTrackController {
                 .percentile(Math.round(pct * 10.0) / 10.0)
                 .ollamaSummary(stats.getOllamaSummary())
                 .build());
+    }
+
+    @PostMapping("/summary/generate")
+    public ResponseEntity<Map<String, Object>> generateSummary(@AuthenticationPrincipal User user) {
+        String summary = weeklySummaryService.generateForCurrentUser(user);
+        return ResponseEntity.ok(Map.of(
+                "summary", summary != null ? summary : "Could not generate summary. Check Ollama is running.",
+                "generatedAt", LocalDateTime.now().toString(),
+                "model", "llama3.2:3b"
+        ));
     }
 
     @GetMapping("/leaderboard")

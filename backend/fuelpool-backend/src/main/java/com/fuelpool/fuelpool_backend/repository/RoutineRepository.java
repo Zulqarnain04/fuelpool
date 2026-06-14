@@ -12,6 +12,6 @@ import java.util.List;
 public interface RoutineRepository extends JpaRepository<Routine, Long> {
     List<Routine> findByUserIdAndIsActiveTrue(Long userId);
 
-    @Query("SELECT r FROM Routine r WHERE r.isActive = true AND r.autoRequest = true AND r.daysOfWeek LIKE %:day% AND r.departureTime = :time")
+    @Query("SELECT r FROM Routine r WHERE r.isActive = true AND r.autoRequest = true AND r.daysOfWeek LIKE CONCAT('%', :day, '%') AND r.departureTime = :time")
     List<Routine> findActiveByDayAndTime(String day, LocalTime time);
 }

@@ -1,5 +1,6 @@
 package com.fuelpool.fuelpool_backend.service.eco;
 
+import com.fuelpool.fuelpool_backend.exception.BusinessException;
 import com.fuelpool.fuelpool_backend.model.EcoWeeklyStats;
 import com.fuelpool.fuelpool_backend.model.User;
 import com.fuelpool.fuelpool_backend.repository.EcoWeeklyStatsRepository;
@@ -45,7 +46,17 @@ public class WeeklySummaryService {
         leaderboardService.updateRanksForCurrentWeek();
     }
 
-    private void generateForUser(EcoWeeklyStats stats) {
+    public String generateForCurrentUser(User user) {
+        LocalDate weekStart = LocalDate.now().with(DayOfWeek.MONDAY);
+        EcoWeeklyStats stats = statsRepository
+                .findByUserIdAndWeekStartDate(user.getId(), weekStart)
+                .orElseThrow(() -> new BusinessException(
+                        "No weekly stats yet. Complete a trip or run POST /api/demo/seed first."));
+        generateForUser(stats);
+        return stats.getOllamaSummary();
+    }
+
+    public void generateForUser(EcoWeeklyStats stats) {
         User user = stats.getUser();
         var vehicle = vehicleRepository.findByUserIdAndIsPrimaryTrue(user.getId()).orElse(null);
         double defaultEff = vehicle != null ? vehicle.getAvgEfficiency().doubleValue() : 15.0;

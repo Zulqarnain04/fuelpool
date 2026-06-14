@@ -1,5 +1,6 @@
 package com.fuelpool.fuelpool_backend.controller;
 
+import com.fuelpool.fuelpool_backend.dto.response.EnhancedPredictionResponse;
 import com.fuelpool.fuelpool_backend.dto.response.FuelPriceResponse;
 import com.fuelpool.fuelpool_backend.dto.response.FuelTrendResponse;
 import com.fuelpool.fuelpool_backend.dto.response.RefuelRecommendationResponse;
@@ -45,6 +46,13 @@ public class FuelPriceController {
     public ResponseEntity<FuelTrendResponse> trend(
             @RequestParam(defaultValue = "RON95_MARKET") String fuelType) {
         return ResponseEntity.ok(trendService.predict(Vehicle.FuelType.valueOf(fuelType)));
+    }
+
+    @GetMapping("/trend/enhanced")
+    public ResponseEntity<EnhancedPredictionResponse> enhancedTrend(
+            @RequestParam(defaultValue = "RON97") String fuelType) {
+        return ResponseEntity.ok(
+                trendService.predictEnhanced(Vehicle.FuelType.valueOf(fuelType)));
     }
 
     @GetMapping("/recommendation")

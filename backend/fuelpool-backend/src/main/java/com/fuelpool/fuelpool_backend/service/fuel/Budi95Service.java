@@ -1,5 +1,6 @@
 package com.fuelpool.fuelpool_backend.service.fuel;
 
+import com.fuelpool.fuelpool_backend.model.Vehicle;
 import com.fuelpool.fuelpool_backend.repository.FuelLogRepository;
 import com.fuelpool.fuelpool_backend.service.notification.NotificationService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +19,7 @@ public class Budi95Service {
 
     public double getBudi95UsedThisMonth(Long userId) {
         LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
-        Double used = fuelLogRepository.sumBudi95LitresThisMonth(userId, monthStart);
+        Double used = fuelLogRepository.sumBudi95LitresThisMonth(userId, monthStart, Vehicle.FuelType.RON95_BUDI95);
         return used != null ? used : 0.0;
     }
 
