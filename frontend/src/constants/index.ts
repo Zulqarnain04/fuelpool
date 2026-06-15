@@ -7,7 +7,7 @@
 // (NOT 192.168.56.1 — that's a VirtualBox host-only adapter the phone can't reach).
 // Run `ipconfig` and use the "Wireless LAN adapter Wi-Fi" IPv4 address.
 // NOTE: the backend must bind 0.0.0.0 (Spring default) so it's reachable on this IP.
-export const API_BASE_URL = 'http://10.211.109.229:8080/api';
+export const API_BASE_URL = 'http://10.160.36.161:8080/api';
 
 // ---- GRAB FARE ESTIMATE ----  grabFare = BASE + distanceKm * RATE_PER_KM
 export const GRAB_BASE_FARE = 2.5;

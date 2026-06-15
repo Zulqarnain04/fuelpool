@@ -159,6 +159,28 @@ npx expo start
 # Scan the QR code with the Expo Go app
 ```
 
+### 5. Let others on the same Wi-Fi connect too
+
+`npx expo start` runs in **LAN mode by default** — the QR code it prints works for **any device on the same Wi-Fi network**, not just yours. Once your laptop is set up, anyone on the same Wi-Fi can:
+
+1. Open **Expo Go** on their phone
+2. Scan the QR code shown in your terminal (or shown on the Expo Dev Tools page in your browser)
+3. The app loads and talks to **your** backend automatically via the `API_BASE_URL` you set in step 4 — no setup needed on their end
+
+For this to work, two things must be reachable from other devices on the Wi-Fi:
+
+- **Port 8081** (Metro/Expo bundler) — for loading the app itself
+- **Port 8080** (Spring Boot backend) — for API calls
+
+Windows Firewall often blocks these from other devices by default. If others can scan the QR but the app gets stuck loading, or loads but can't reach the backend, allow both ports (run as Administrator):
+
+```powershell
+New-NetFirewallRule -DisplayName "Expo Metro 8081" -Direction Inbound -Protocol TCP -LocalPort 8081 -Action Allow
+New-NetFirewallRule -DisplayName "FuelPool Backend 8080" -Direction Inbound -Protocol TCP -LocalPort 8080 -Action Allow
+```
+
+> ⚠️ Your laptop's LAN IP is DHCP-assigned and **can change** (new Wi-Fi connection, reboot, etc.). If it changes, `API_BASE_URL` in `src/constants/index.ts` goes stale and **everyone** loses backend access — re-run `ipconfig` / `Get-NetIPAddress` (Wi-Fi adapter IPv4), update `API_BASE_URL`, and reload the app on all devices (shake → Reload, or press `r` in the Expo terminal).
+
 ---
 
 ## Usage
