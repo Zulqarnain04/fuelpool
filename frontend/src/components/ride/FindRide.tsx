@@ -23,6 +23,14 @@ function fmtTime(iso?: string) {
   return `${((d.getHours() + 11) % 12) + 1}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
 }
 
+// LocalDateTime string in the device's local time (matches how ride departureTime
+// is created and stored — NOT toISOString(), which is UTC and would be hours off).
+function nowLocalIso(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
 export default function FindRide({ userLoc }: { userLoc: Coords | null }) {
   const router = useRouter();
   const [from, setFrom] = useState<Place | null>(userLoc ? { label: 'Current location', ...userLoc } : null);
@@ -42,7 +50,7 @@ export default function FindRide({ userLoc }: { userLoc: Coords | null }) {
         pickupLng: from.lng,
         dropoffLat: to.lat,
         dropoffLng: to.lng,
-        time: new Date().toISOString().slice(0, 19), // LocalDateTime, "now"
+        time: nowLocalIso(), // LocalDateTime, "now" (device-local, not UTC)
       });
       setResults(res.data ?? []);
     } catch (e: any) {

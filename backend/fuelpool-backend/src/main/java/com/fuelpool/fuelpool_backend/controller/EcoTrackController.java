@@ -1,6 +1,8 @@
 package com.fuelpool.fuelpool_backend.controller;
 
+import com.fuelpool.fuelpool_backend.dto.request.SoloTripRequest;
 import com.fuelpool.fuelpool_backend.dto.response.EcoDashboardResponse;
+import com.fuelpool.fuelpool_backend.exception.BusinessException;
 import com.fuelpool.fuelpool_backend.model.EcoWeeklyStats;
 import com.fuelpool.fuelpool_backend.model.FuelLog;
 import com.fuelpool.fuelpool_backend.model.User;
@@ -10,8 +12,10 @@ import com.fuelpool.fuelpool_backend.repository.FuelLogRepository;
 import com.fuelpool.fuelpool_backend.repository.VehicleRepository;
 import com.fuelpool.fuelpool_backend.service.eco.CarbonService;
 import com.fuelpool.fuelpool_backend.service.eco.LeaderboardService;
+import com.fuelpool.fuelpool_backend.service.eco.SavingsService;
 import com.fuelpool.fuelpool_backend.service.eco.WeeklySummaryService;
 import com.fuelpool.fuelpool_backend.service.fuel.Budi95Service;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -37,6 +41,7 @@ public class EcoTrackController {
     private final CarbonService carbonService;
     private final Budi95Service budi95Service;
     private final WeeklySummaryService weeklySummaryService;
+    private final SavingsService savingsService;
 
     @GetMapping("/weekly")
     public ResponseEntity<EcoDashboardResponse> weekly(@AuthenticationPrincipal User user,
@@ -69,6 +74,22 @@ public class EcoTrackController {
                 .percentile(Math.round(pct * 10.0) / 10.0)
                 .ollamaSummary(stats.getOllamaSummary())
                 .build());
+    }
+
+    @PostMapping("/solo-trip")
+    public ResponseEntity<EcoDashboardResponse> logSoloTrip(@AuthenticationPrincipal User user,
+                                                             @Valid @RequestBody SoloTripRequest req) {
+        Vehicle vehicle = req.getVehicleId() != null
+                ? vehicleRepository.findById(req.getVehicleId())
+                    .filter(v -> v.getUser().getId().equals(user.getId()))
+                    .orElseThrow(() -> new BusinessException("Vehicle does not belong to this user"))
+                : vehicleRepository.findFirstByUserIdAndIsPrimaryTrue(user.getId())
+                    .orElseThrow(() -> new BusinessException("No vehicle found. Add a vehicle first."));
+
+        savingsService.recordSoloTrip(user, vehicle, req.getDistanceKm().doubleValue());
+        leaderboardService.updateRanksForCurrentWeek();
+
+        return weekly(user, 0);
     }
 
     @PostMapping("/summary/generate")

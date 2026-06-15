@@ -22,7 +22,9 @@ public class MatchingService {
 
     private static final double DEST_RADIUS_M = 500.0;
     private static final double PICKUP_RADIUS_M = 1000.0;
-    private static final int TIME_WINDOW_MIN = 15;
+    // Generous window so "Find Ride" (which always searches from "now") still
+    // surfaces rides departing later this hour, not just ones leaving this instant.
+    private static final int TIME_WINDOW_MIN = 60;
 
     private final RideRepository rideRepository;
     private final RideRequestRepository rideRequestRepository;
@@ -82,7 +84,7 @@ public class MatchingService {
                     pickupLat, pickupLng);
             double seatFill = (double)(ride.getConfirmedPassengers() + 1) / ride.getMaxSeats();
 
-            double score = (1 - timeDiffMin / 15.0) * 0.4
+            double score = (1 - Math.min(timeDiffMin, TIME_WINDOW_MIN) / (double) TIME_WINDOW_MIN) * 0.4
                     + (1 - Math.min(pickupDist, PICKUP_RADIUS_M) / PICKUP_RADIUS_M) * 0.35
                     + seatFill * 0.25;
 
@@ -103,7 +105,8 @@ public class MatchingService {
                     .availableSeats(ride.getMaxSeats() - ride.getConfirmedPassengers())
                     .farePerPerson(fare)
                     .savedVsGrab(saved)
-                    .matchScore(BigDecimal.valueOf(score).setScale(3, RoundingMode.HALF_UP).doubleValue())
+                    // matchScore is a 0-100 percentage (the frontend renders it as "NN% match")
+                    .matchScore(BigDecimal.valueOf(score * 100).setScale(1, RoundingMode.HALF_UP).doubleValue())
                     .pickupDistanceMetres(Math.round(pickupDist * 10.0) / 10.0)
                     .originLabel(ride.getOriginLabel())
                     .destinationLabel(ride.getDestinationLabel())

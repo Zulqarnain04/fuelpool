@@ -52,7 +52,7 @@ export const FUEL_TYPES = [
 
 // ---- MATCHING SETTINGS ----
 export const MATCHING = {
-  TIME_WINDOW_MINUTES: 15, // ±15 min from requested time
+  TIME_WINDOW_MINUTES: 60, // ±60 min from requested time
   MAX_DEST_DISTANCE_METRES: 500, // destination must be within 500m
   ROUTINE_TRIGGER_MINUTES: 30, // auto-request 30 min before departure
 };

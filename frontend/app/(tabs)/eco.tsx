@@ -1,10 +1,10 @@
 // app/(tabs)/eco.tsx — EcoTrack detailed (L3): carbon, leaderboard, habits, monthly.
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, RefreshControl, ActivityIndicator, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  Cpu, Trophy, Leaf, Gauge, Clock, ShieldCheck, Users, RefreshCw, WifiOff, Sparkles,
+  Cpu, Trophy, Leaf, Gauge, Clock, ShieldCheck, Users, RefreshCw, WifiOff, Sparkles, Car,
 } from 'lucide-react-native';
 import AiBadge from '../../src/components/common/AiBadge';
 import SkeletonBox from '../../src/components/common/SkeletonBox';
@@ -50,6 +50,8 @@ function EcoTabContent() {
   const [generating, setGenerating] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [lbFilter, setLbFilter] = useState<'week' | 'month' | 'all'>('week');
+  const [soloKm, setSoloKm] = useState('');
+  const [loggingSolo, setLoggingSolo] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setStatus('loading');
@@ -77,6 +79,21 @@ function EcoTabContent() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const logSolo = async () => {
+    const km = parseFloat(soloKm);
+    if (!km || km <= 0) return;
+    setLoggingSolo(true);
+    try {
+      const res = await ecoApi.logSoloTrip({ distanceKm: km });
+      setWeekly(res.data);
+      setSoloKm('');
+    } catch {
+      /* keep the entered value so the user can retry */
+    } finally {
+      setLoggingSolo(false);
+    }
+  };
 
   const generate = async () => {
     setGenerating(true);
@@ -178,6 +195,32 @@ function EcoTabContent() {
           <Stat label="Fuel spent" value={rm(weekly.totalFuelCost)} />
           <Stat label="Carbon saved" value={`${carbonSaved.toFixed(1)} kg`} accent />
           <Stat label="Saved vs Grab" value={rm(weekly.savedVsGrab)} accent />
+        </View>
+
+        {/* Log a solo trip */}
+        <View style={styles.card}>
+          <View style={styles.rowCenter}><Car size={15} color={FP_DANGER} /><Text style={styles.cardTitle}>  Log a solo trip</Text></View>
+          <Text style={styles.cardMeta}>Drove alone? Log the distance to keep your eco stats accurate.</Text>
+          <View style={[styles.rowCenter, { marginTop: 12, gap: 8 }]}>
+            <TextInput
+              style={styles.soloInput}
+              value={soloKm}
+              onChangeText={setSoloKm}
+              placeholder="Distance (km)"
+              placeholderTextColor={TEXT_LIGHT}
+              keyboardType="decimal-pad"
+              accessibilityLabel="Solo trip distance in kilometres"
+            />
+            <Pressable
+              style={[styles.soloBtn, (!soloKm || loggingSolo) && styles.soloBtnDisabled]}
+              onPress={logSolo}
+              disabled={!soloKm || loggingSolo}
+              accessibilityRole="button"
+              accessibilityLabel="Log solo trip"
+            >
+              {loggingSolo ? <ActivityIndicator size="small" color={CARD} /> : <Text style={styles.soloBtnText}>Log trip</Text>}
+            </Pressable>
+          </View>
         </View>
 
         {/* SECTION 3: AI coaching */}
@@ -355,6 +398,11 @@ const styles = StyleSheet.create({
   statCard: { width: '48%', backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: BORDER, padding: 12, marginBottom: 10 },
   statLabel: { fontSize: 10, color: TEXT_SECONDARY, fontWeight: '600' },
   statValue: { fontSize: 16, fontWeight: '800', color: TEXT_PRIMARY, marginTop: 4 },
+
+  soloInput: { flex: 1, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: BORDER, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14, color: TEXT_PRIMARY },
+  soloBtn: { backgroundColor: FP_PRIMARY, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 11, alignItems: 'center', justifyContent: 'center', minWidth: 84 },
+  soloBtnDisabled: { opacity: 0.5 },
+  soloBtnText: { color: CARD, fontSize: 13, fontWeight: '800' },
 
   aiCard: { borderRadius: 20, padding: 16, marginTop: 4, marginBottom: 12 },
   aiTitle: { color: CARD, fontSize: 14, fontWeight: '800' },

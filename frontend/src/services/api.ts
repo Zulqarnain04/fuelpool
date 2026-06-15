@@ -188,6 +188,10 @@ export const ecoApi = {
   // v3: force-generate a fresh Ollama summary
   generateSummary: () =>
     api.post('/eco/summary/generate'),
+
+  // log a solo (non-carpool) trip — counts against eco score and deducts fuel
+  logSoloTrip: (data: SoloTripRequest) =>
+    api.post('/eco/solo-trip', data),
 };
 
 // ---- VEHICLE ----  (VehicleController /api/vehicles)
@@ -270,6 +274,11 @@ export interface MatchRequest {
   dropoffLat: number;
   dropoffLng: number;
   time: string; // ISO LocalDateTime
+}
+
+export interface SoloTripRequest {
+  distanceKm: number;
+  vehicleId?: number;
 }
 
 export interface RoutineRequest {

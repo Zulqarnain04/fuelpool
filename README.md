@@ -25,17 +25,152 @@ FuelPool is a **campus-first smart mobility app** with three AI-powered layers:
 
 ---
 
-## Demo
+## Tech Stack
 
-> **Hackathon demo runs on Expo Go — scan to try live**
+### Frontend (`frontend/`)
+- **React Native** (Expo SDK 56, New Architecture, React 19, TypeScript 6)
+- **Expo Go** — runs the full app with no native build
+- **Expo Router** — file-based navigation
+- **react-native-webview + Leaflet.js** for maps (Expo Go compatible)
+- **Axios** for API calls, **expo-secure-store** for the JWT token
+
+### Backend (`backend/fuelpool-backend/`)
+- **Spring Boot 3** (Java 21, Maven)
+- **MySQL** + Spring Data JPA / Hibernate (`ddl-auto: update` — schema is created/updated automatically)
+- **JWT** authentication
+- **Jsoup** — MOF website scraper
+- **Ollama** (llama3.2:3b) — local LLM for AI summaries, MOF impact analysis and weekly coaching
+- **Spring Scheduler** — weekly fuel-price scrape + routine auto-matching
+
+---
+
+## Project Structure
 
 ```
-npx expo start --tunnel
+fuelpool-repo/
+├── backend/
+│   └── fuelpool-backend/             # Spring Boot API (Maven, ./mvnw)
+│       ├── src/main/java/com/fuelpool/fuelpool_backend/
+│       │   ├── controller/
+│       │   ├── service/
+│       │   ├── model/
+│       │   ├── repository/
+│       │   └── dto/
+│       ├── src/main/resources/
+│       │   ├── application.yaml      # DB / JWT / Ollama config (env-var driven)
+│       │   └── data/                 # dummy_users.sql, fuelprice.csv, vehicles.json
+│       └── pom.xml
+│
+├── frontend/                          # Expo React Native app
+│   ├── app/                            # Expo Router screens (file-based routes)
+│   └── src/
+│       ├── components/
+│       ├── services/api.ts             # API layer
+│       ├── constants/                  # API_BASE_URL, design tokens, etc.
+│       └── hooks/
+│
+├── fuelprice.csv                       # Historical fuel price dataset
+└── FUELPOOL_SPEC.md                    # Full technical specification
 ```
 
-Scan the QR code with **Expo Go** app (iOS / Android).
+---
 
-Backend runs on Render: `https://fuelpool-api.onrender.com`
+## Setup
+
+### Prerequisites
+- **Java 21** (JDK)
+- **Node.js 18+** and npm
+- **MySQL 8** running locally
+- *(Optional, for AI features)* **Ollama** with the `llama3.2:3b` model
+- **Expo Go** app on your phone (iOS/Android) — the app runs in Expo Go, no native build needed
+
+### 1. Backend (Spring Boot)
+
+```bash
+cd backend/fuelpool-backend
+
+# create the database (one-time)
+mysql -u root -p -e "CREATE DATABASE fuelpool"
+
+# set your MySQL password (required — no default; PowerShell: $env:DB_PASSWORD="...")
+export DB_PASSWORD=your_mysql_password
+
+./mvnw spring-boot:run
+# Runs on http://localhost:8080 — schema is created/updated automatically
+```
+
+Other config (env vars, all optional with defaults from `application.yaml`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DB_URL` | `jdbc:mysql://localhost:3306/fuelpool` | JDBC URL |
+| `DB_USERNAME` | `root` | MySQL user |
+| `DB_PASSWORD` | *(required, no default)* | MySQL password |
+| `JWT_SECRET` | built-in dev secret | JWT signing key |
+| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server URL |
+
+### 2. Seed demo data (recommended)
+
+Load 5 demo users + their vehicles:
+```bash
+mysql -u root -p fuelpool < src/main/resources/data/dummy_users.sql
+```
+
+All demo accounts use password **`password123`**:
+
+| Email | Name | Role |
+|---|---|---|
+| ahmad@utm.my | Ahmad Razif | Driver |
+| nurul@utm.my | Nurul Ain | Passenger |
+| haziq@utm.my | Haziq Faris | Driver |
+| siti@utm.my | Siti Nabilah | Passenger |
+| luqman@utm.my | Luqman Hakim | Driver |
+
+With the backend running, seed demo rides + eco stats:
+```bash
+curl -X POST http://localhost:8080/api/demo/seed
+```
+Re-run this any time you want fresh "departing soon" demo rides for the **Find Ride** flow.
+
+### 3. Ollama (optional — powers AI summaries & MOF analysis)
+
+```bash
+ollama pull llama3.2:3b
+ollama serve
+# Runs on http://localhost:11434
+```
+Without Ollama running, the rest of the app still works — AI summary/insight features just won't generate text.
+
+### 4. Frontend (Expo)
+
+```bash
+cd frontend
+npm install --legacy-peer-deps
+```
+
+Update `src/constants/index.ts` → `API_BASE_URL` to your machine's **LAN IP** (not `localhost`) — Expo Go runs on your phone over Wi-Fi and can't reach `localhost` on your laptop:
+```ts
+export const API_BASE_URL = 'http://<your-lan-ip>:8080/api';
+```
+Find your LAN IP with `ipconfig` (Windows) / `ifconfig` (macOS/Linux) — use the Wi-Fi adapter's IPv4 address. The backend binds `0.0.0.0` by default, so it's reachable on that IP.
+
+```bash
+npx expo start
+# Scan the QR code with the Expo Go app
+```
+
+---
+
+## Usage
+
+1. Open the app in Expo Go and **register** a new account, or **log in** with one of the demo accounts above.
+2. On first login, complete onboarding — add a vehicle (fuel type, tank capacity, average efficiency).
+3. **Home** — combined dashboard: fuel level/refuel advice, nearby carpool matches, weekly eco summary.
+4. **Fuel** — current Malaysian fuel prices, price trend/forecast, log a fill-up, and MOF price-update articles with AI impact analysis.
+5. **Ride** — map of nearby rides; **Find** a ride as a passenger, **Offer** a ride as a driver, and **My Rides** to manage requests and active trips.
+6. **Eco** — weekly carbon savings, eco score, campus leaderboard, driving habits, and "Log a solo trip" for non-carpool trips.
+
+For a guided two-account walkthrough using the seeded demo data, log in as `nurul@utm.my` (passenger) on one device and `ahmad@utm.my` (driver) on another to try the full request → accept → start → complete ride flow, then check that both accounts' **Eco** tabs update.
 
 ---
 
@@ -51,8 +186,8 @@ Backend runs on Render: `https://fuelpool-api.onrender.com`
 ## AI Features
 
 1. **Ollama (llama3.2:3b) — MOF article analysis**
-   - Scrapes Ministry of Finance weekly press release every Wednesday 5PM
-   - AI extracts: affected fuel type, new price, change amount, effective date, reason
+   - Scrapes Ministry of Finance weekly press releases
+   - AI extracts: affected fuel type, new price, change amount, effective date, reason, and a plain-English impact summary for a typical student commute
    - Sends push notification to relevant users
 
 2. **Trend prediction model**
@@ -60,94 +195,16 @@ Backend runs on Render: `https://fuelpool-api.onrender.com`
    - Outputs: 4-week price forecast + `FILL_NOW / WAIT / STABLE` recommendation
 
 3. **Gender-aware carpool matching algorithm**
-   - Scores rides by time proximity (±15 min), destination distance (<500m), seat fill ratio
-   - Safety rule: lone female passenger only matched with female driver or mixed group
+   - Scores rides by time proximity (±60 min), destination distance (<500m), and seat-fill ratio
+   - Safety rule: a lone female passenger may join a male driver's ride only as the first passenger or alongside an existing female passenger
 
 4. **Ollama — weekly personalised summary**
-   - Every Sunday, generates personalised coaching message per user
+   - Generates a personalised coaching message per user from their week's driving
    - *"You shared 3 rides this week, saved RM 44 and 6.8kg CO2. You're in the top 18% at UTM."*
 
 5. **Driving habit coach**
    - Analyses fuel log patterns (efficiency trends, BUDI95 usage, refuelling timing)
-   - Generates specific weekly tip via Ollama
-
----
-
-## Tech Stack
-
-### Frontend
-- **React Native** (Expo SDK 51)
-- **Expo Go** for demo (no native build needed)
-- **Expo Router** — file-based navigation
-- **React Native Maps** via WebView + Leaflet.js (Expo Go compatible)
-- **Axios** for API calls
-- **AsyncStorage** for local token storage
-
-### Backend
-- **Spring Boot 3.x** (Java 17)
-- **MySQL** (Aiven Cloud)
-- **Spring Data JPA** + Hibernate
-- **JWT** authentication
-- **Jsoup** — MOF website scraper
-- **Ollama** — local LLM (llama3.2:3b)
-- **Spring Scheduler** — weekly price scrape + routine auto-matching
-
----
-
-## Project Structure
-
-```
-fuelpool/
-├── frontend/          # Expo React Native app
-│   ├── app/          # Expo Router screens
-│   ├── src/
-│   │   ├── components/
-│   │   ├── services/  # API layer
-│   │   ├── hooks/
-│   │   └── constants/
-│   ├── app.json
-│   └── package.json
-│
-├── backend/           # Spring Boot API
-│   ├── src/main/java/com/fuelpool/
-│   │   ├── controller/
-│   │   ├── service/
-│   │   ├── model/
-│   │   ├── repository/
-│   │   ├── dto/
-│   │   └── scheduler/
-│   └── pom.xml
-│
-├── FUELPOOL_SPEC.md   # Full technical specification
-└── README.md
-```
-
----
-
-## Getting Started
-
-### Backend
-```bash
-cd backend
-# Configure application.properties (see backend/README.md)
-./mvnw spring-boot:run
-# Runs on http://localhost:8080
-```
-
-### Frontend
-```bash
-cd frontend
-npm install
-npx expo start
-# Scan QR with Expo Go app
-```
-
-### Ollama (local AI)
-```bash
-ollama pull llama3.2:3b
-ollama serve
-# Runs on http://localhost:11434
-```
+   - Generates a specific weekly tip via Ollama
 
 ---
 
@@ -157,13 +214,6 @@ ollama serve
 |---|---|---|
 | Fuel price history (2017–2026) | data.gov.my | https://api.data.gov.my/data-catalogue?id=fuelprice |
 | Weekly fuel price announcements | Ministry of Finance Malaysia | https://www.mof.gov.my/portal/en/news/press-citations |
-| Traffic patterns | Dummy data (campus demo) | `/backend/src/main/resources/data/traffic_dummy.json` |
-
----
-
-## Team
-
-Built solo by **[Your Name]** for UTM ASCEND 2030 Vibeathon AI Coding Challenge.
 
 ---
 

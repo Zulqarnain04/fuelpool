@@ -7,6 +7,7 @@ import com.fuelpool.fuelpool_backend.model.User;
 import com.fuelpool.fuelpool_backend.model.Vehicle;
 import com.fuelpool.fuelpool_backend.repository.EcoWeeklyStatsRepository;
 import com.fuelpool.fuelpool_backend.repository.FuelPriceRepository;
+import com.fuelpool.fuelpool_backend.repository.VehicleRepository;
 import com.fuelpool.fuelpool_backend.service.fuel.FuelPriceService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ public class SavingsService {
     private final FuelPriceRepository fuelPriceRepository;
     private final FuelPriceService fuelPriceService;
     private final EcoWeeklyStatsRepository ecoWeeklyStatsRepository;
+    private final VehicleRepository vehicleRepository;
     private final CarbonService carbonService;
 
     public BigDecimal savedVsSolo(double distanceKm, Vehicle vehicle, BigDecimal farePaid) {
@@ -97,6 +99,41 @@ public class SavingsService {
 
         applyEcoScore(stats);
         ecoWeeklyStatsRepository.save(stats);
+    }
+
+    /**
+     * Records a solo (non-carpool) trip: adds its carbon and fuel cost to the user's
+     * weekly stats, counts it against their eco score, and deducts the fuel used from
+     * the vehicle's tracked fuel level.
+     */
+    public void recordSoloTrip(User user, Vehicle vehicle, double distanceKm) {
+        LocalDate weekStart = LocalDate.now().with(DayOfWeek.MONDAY);
+
+        EcoWeeklyStats stats = ecoWeeklyStatsRepository
+                .findByUserIdAndWeekStartDate(user.getId(), weekStart)
+                .orElse(EcoWeeklyStats.builder().user(user).weekStartDate(weekStart).build());
+
+        double tripCarbonKg = carbonService.soloCarbon(distanceKm, vehicle);
+
+        var latest = fuelPriceRepository.findTopByOrderByPriceDateDesc().orElse(null);
+        double pricePerLitre = latest != null
+                ? fuelPriceService.getPriceForFuelType(latest, vehicle.getFuelType()).doubleValue()
+                : 2.05;
+        double litresUsed = distanceKm / vehicle.getAvgEfficiency().doubleValue();
+
+        stats.setTotalTrips(stats.getTotalTrips() + 1);
+        stats.setSoloTrips(stats.getSoloTrips() + 1);
+        stats.setTotalCarbonKg(stats.getTotalCarbonKg().add(
+                BigDecimal.valueOf(tripCarbonKg).setScale(4, RoundingMode.HALF_UP)));
+        stats.setTotalFuelCost(stats.getTotalFuelCost().add(
+                BigDecimal.valueOf(litresUsed * pricePerLitre).setScale(2, RoundingMode.HALF_UP)));
+
+        applyEcoScore(stats);
+        ecoWeeklyStatsRepository.save(stats);
+
+        BigDecimal current = vehicle.getCurrentFuelLevel() != null ? vehicle.getCurrentFuelLevel() : BigDecimal.ZERO;
+        vehicle.setCurrentFuelLevel(current.subtract(BigDecimal.valueOf(litresUsed)).max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP));
+        vehicleRepository.save(vehicle);
     }
 
     private void applyEcoScore(EcoWeeklyStats stats) {
