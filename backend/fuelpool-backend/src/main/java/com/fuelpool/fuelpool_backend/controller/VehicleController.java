@@ -36,6 +36,7 @@ public class VehicleController {
                 .color(req.getColor())
                 .plateNumber(req.getPlateNumber())
                 .tankCapacity(req.getTankCapacity())
+                .currentFuelLevel(req.getTankCapacity())
                 .avgEfficiency(req.getAvgEfficiency())
                 .fuelType(req.getFuelType())
                 .currentOdometer(req.getCurrentOdometer() != null ? req.getCurrentOdometer() : 0)

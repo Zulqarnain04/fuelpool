@@ -54,6 +54,8 @@ public class MatchingService {
                 .toList();
 
         // Step 3 — Gender safety filter
+        // A female passenger may always be the FIRST passenger on a male driver's ride;
+        // she is only blocked from joining an existing all-male passenger group.
         List<Ride> safe = new ArrayList<>();
         for (Ride ride : candidates) {
             if (passenger.getGender() == User.Gender.FEMALE
@@ -66,7 +68,7 @@ public class MatchingService {
                         .filter(rr -> rr.getPassenger().getGender() == User.Gender.FEMALE)
                         .count();
 
-                if (femalePassengers == 0) continue;
+                if (!accepted.isEmpty() && femalePassengers == 0) continue;
             }
             safe.add(ride);
         }

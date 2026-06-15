@@ -214,6 +214,7 @@ export default function MofArticleScreen({ onBack }: { onBack: () => void }) {
                   </View>
                 ) : null}
               </View>
+              {impact.summary ? <Text style={styles.bodyText}>{impact.summary}</Text> : null}
               {impact.driverAdvice ? <Text style={styles.bodyText}>🚗 {impact.driverAdvice}</Text> : null}
               {impact.estimatedCostImpact ? <Text style={styles.impactCost}>💸 {impact.estimatedCostImpact}</Text> : null}
             </View>
@@ -233,14 +234,6 @@ export default function MofArticleScreen({ onBack }: { onBack: () => void }) {
                 ))}
               </View>
             </>
-          ) : null}
-
-          {/* excerpt */}
-          {article?.rawContent ? (
-            <View style={styles.card}>
-              <Text style={styles.sectionLabel}>Article excerpt</Text>
-              <Text style={styles.excerpt} numberOfLines={6}>{article.rawContent}</Text>
-            </View>
           ) : null}
 
           {/* link */}
@@ -289,7 +282,6 @@ const styles = StyleSheet.create({
   gridPrev: { fontSize: 11, color: TEXT_LIGHT, marginTop: 2 },
 
   card: { backgroundColor: CARD, borderRadius: 20, borderWidth: 1, borderColor: BORDER, padding: 16, marginBottom: 12 },
-  excerpt: { fontSize: 13, color: TEXT_SECONDARY, lineHeight: 20 },
   bodyText: { fontSize: 13, color: TEXT_SECONDARY, lineHeight: 20, marginTop: 4 },
   impactBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999 },
   impactBadgeText: { color: CARD, fontSize: 9, fontWeight: '800' },

@@ -76,6 +76,11 @@ public class RideController {
         return ResponseEntity.ok(rideService.findById(id));
     }
 
+    @GetMapping("/{id}/requests")
+    public ResponseEntity<List<RideRequest>> pendingRequests(@AuthenticationPrincipal User user, @PathVariable Long id) {
+        return ResponseEntity.ok(rideService.getPendingRequests(id, user));
+    }
+
     @GetMapping("/match")
     public ResponseEntity<List<RideMatchResponse>> match(
             @AuthenticationPrincipal User user,

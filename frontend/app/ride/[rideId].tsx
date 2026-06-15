@@ -6,14 +6,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import {
-  ArrowLeft, Star, ShieldCheck, Users, Navigation, MapPin, Flag, WifiOff, RefreshCw,
+  ArrowLeft, Star, ShieldCheck, Users, Navigation, MapPin, Flag, WifiOff, RefreshCw, Check, X,
 } from 'lucide-react-native';
 import LeafletMap from '../../src/components/common/LeafletMap';
 import { toast } from '../../src/components/common/Toast';
 import { statusMeta, fmtRideTime } from '../../src/components/ride/rideUtils';
 import useAuth from '../../src/hooks/useAuth';
 import { carpoolApi, userApi } from '../../src/services/api';
-import type { RideFull } from '../../src/services/api';
+import type { RideFull, RideRequestFull } from '../../src/services/api';
 import { CAMPUS_LOCATIONS } from '../../src/constants';
 import { num, rm, initialsOf } from '../../src/utils/format';
 import {
@@ -35,6 +35,7 @@ export default function RideDetail() {
   const [busy, setBusy] = useState(false);
   const [requested, setRequested] = useState(false);
   const [rateOpen, setRateOpen] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState<RideRequestFull[]>([]);
 
   const load = useCallback(async () => {
     setStatus('loading');
@@ -50,6 +51,24 @@ export default function RideDetail() {
   }, [rideId]);
 
   useEffect(() => { load(); }, [load]);
+
+  const loadRequests = useCallback(async () => {
+    try {
+      const res = await carpoolApi.getPendingRequests(Number(rideId));
+      setPendingRequests(res.data ?? []);
+    } catch {
+      setPendingRequests([]);
+    }
+  }, [rideId]);
+
+  useEffect(() => {
+    const amDriver = ride?.driver?.id != null && ride.driver.id === myId;
+    if (amDriver && (ride?.status === 'OPEN' || ride?.status === 'FULL')) {
+      loadRequests();
+    } else {
+      setPendingRequests([]);
+    }
+  }, [ride, myId, loadRequests]);
 
   if (status === 'loading') {
     return <Center><ActivityIndicator color={FP_PRIMARY} /></Center>;
@@ -98,6 +117,19 @@ export default function RideDetail() {
     try {
       const res = await fn();
       if (res?.data) { setRide(res.data); after?.(res.data); }
+    } catch (e: any) {
+      Alert.alert('Error', e?.response?.data?.message ?? 'Action failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const respondToRequest = async (requestId: number, action: 'accept' | 'reject') => {
+    setBusy(true);
+    try {
+      await (action === 'accept' ? carpoolApi.acceptRequest(requestId) : carpoolApi.rejectRequest(requestId));
+      toast.success(action === 'accept' ? 'Request accepted' : 'Request declined');
+      await load();
     } catch (e: any) {
       Alert.alert('Error', e?.response?.data?.message ?? 'Action failed.');
     } finally {
@@ -180,7 +212,7 @@ export default function RideDetail() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Your pickup point</Text>
               <View style={styles.chipRow}>
-                {CAMPUS_LOCATIONS.slice(0, 5).map((c) => (
+                {CAMPUS_LOCATIONS.map((c) => (
                   <Pressable
                     key={c.label}
                     onPress={() => setPickup({ label: c.label, lat: c.lat, lng: c.lng })}
@@ -209,6 +241,43 @@ export default function RideDetail() {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Driver controls</Text>
               <Text style={styles.driverHint}>{ride.confirmedPassengers ?? 0} of {ride.maxSeats ?? 0} seats confirmed</Text>
+
+              {(ride.status === 'OPEN' || ride.status === 'FULL') && pendingRequests.length > 0 && (
+                <View style={styles.requestsBox}>
+                  <Text style={styles.requestsTitle}>
+                    Pending request{pendingRequests.length === 1 ? '' : 's'} ({pendingRequests.length})
+                  </Text>
+                  {pendingRequests.map((req) => (
+                    <View key={req.id} style={styles.requestRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.requestName}>{req.passenger?.name ?? 'Passenger'}</Text>
+                        <Text style={styles.requestMeta} numberOfLines={1}>
+                          Pickup: {req.pickupLabel ?? 'Unknown'} · {rm(req.fareAmount)}
+                        </Text>
+                      </View>
+                      <Pressable
+                        style={styles.requestAcceptBtn}
+                        onPress={() => respondToRequest(req.id, 'accept')}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Accept request from ${req.passenger?.name ?? 'passenger'}`}
+                      >
+                        <Check size={16} color={CARD} />
+                      </Pressable>
+                      <Pressable
+                        style={styles.requestRejectBtn}
+                        onPress={() => respondToRequest(req.id, 'reject')}
+                        disabled={busy}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Reject request from ${req.passenger?.name ?? 'passenger'}`}
+                      >
+                        <X size={16} color={FP_DANGER} />
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              )}
+
               <View style={{ gap: 10, marginTop: 12 }}>
                 {(ride.status === 'OPEN' || ride.status === 'FULL') && (
                   <>
@@ -364,6 +433,13 @@ const styles = StyleSheet.create({
   outlineBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: FP_PRIMARY, borderRadius: 14, paddingVertical: 13 },
   outlineText: { color: FP_PRIMARY, fontSize: 14, fontWeight: '800' },
   driverHint: { fontSize: 12, color: TEXT_SECONDARY },
+  requestsBox: { marginTop: 12, gap: 8 },
+  requestsTitle: { fontSize: 11, fontWeight: '800', color: TEXT_LIGHT, textTransform: 'uppercase', letterSpacing: 0.5 },
+  requestRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1, borderColor: BORDER, padding: 10 },
+  requestName: { fontSize: 13, fontWeight: '800', color: TEXT_PRIMARY },
+  requestMeta: { fontSize: 11, color: TEXT_SECONDARY, marginTop: 2 },
+  requestAcceptBtn: { width: 34, height: 34, borderRadius: 10, backgroundColor: FP_PRIMARY, alignItems: 'center', justifyContent: 'center' },
+  requestRejectBtn: { width: 34, height: 34, borderRadius: 10, borderWidth: 1.5, borderColor: FP_DANGER, alignItems: 'center', justifyContent: 'center' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: 28 },
   modalCard: { backgroundColor: CARD, borderRadius: 22, padding: 22, width: '100%', alignItems: 'center' },
   modalTitle: { fontSize: 17, fontWeight: '800', color: TEXT_PRIMARY, marginBottom: 16 },

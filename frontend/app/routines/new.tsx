@@ -26,7 +26,7 @@ const ROLES: { label: string; value: RolePreference }[] = [
 ];
 function pad(n: number) { return String(n).padStart(2, '0'); }
 const TIME_SLOTS = (() => { const o: string[] = []; for (let h = 5; h <= 22; h++) for (const m of [0, 15, 30, 45]) o.push(`${pad(h)}:${pad(m)}`); return o; })();
-const CHIPS = CAMPUS_LOCATIONS.slice(0, 6);
+const CHIPS = CAMPUS_LOCATIONS;
 
 export default function RoutineForm() {
   const router = useRouter();

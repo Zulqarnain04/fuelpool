@@ -22,11 +22,22 @@ export const DEFAULT_LAT = 1.5577;
 export const DEFAULT_LNG = 103.6388;
 
 // ---- CAMPUS LOCATIONS (demo pickers) ----
+// Mirrors the named Spot constants in DemoController.java so demo rides line up
+// with the pickup/destination chips shown in the app.
 export const CAMPUS_LOCATIONS = [
+  { label: 'KTDI (MA7)', lat: 1.5659, lng: 103.6334 },
+  { label: 'Faculty of Computing (N28)', lat: 1.557, lng: 103.6367 },
+  { label: 'UTM Main Gate', lat: 1.5588, lng: 103.6347 },
+  { label: 'Kolej 9 & 10', lat: 1.5602, lng: 103.6398 },
+  { label: 'Kolej Tuanku Canselor', lat: 1.5612, lng: 103.6378 },
+  { label: 'Kolej Tun Fatimah', lat: 1.564, lng: 103.631 },
+  { label: 'Perpustakaan Sultanah Zanariah', lat: 1.5598, lng: 103.6385 },
+  { label: 'Dewan Sultan Iskandar', lat: 1.5605, lng: 103.6395 },
+  { label: 'Faculty of Electrical Engineering', lat: 1.5582, lng: 103.6355 },
+  { label: 'UTM Stadium', lat: 1.556, lng: 103.642 },
+  { label: 'Masjid Sultan Ismail UTM', lat: 1.5615, lng: 103.636 },
   { label: 'Kolej 17', lat: 1.5598, lng: 103.642 },
   { label: 'Kolej 18', lat: 1.5605, lng: 103.6415 },
-  { label: 'Faculty of Computing', lat: 1.557, lng: 103.6367 },
-  { label: 'UTM Gate', lat: 1.5588, lng: 103.6347 },
   { label: 'Skudai Town', lat: 1.5305, lng: 103.6612 },
 ];
 

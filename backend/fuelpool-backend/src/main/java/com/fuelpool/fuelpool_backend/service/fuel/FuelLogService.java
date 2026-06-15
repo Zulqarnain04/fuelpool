@@ -85,9 +85,19 @@ public class FuelLogService {
             }
         }
 
-        // Update vehicle odometer
+        // Update vehicle odometer and current fuel level
         if (vehicle != null) {
             vehicle.setCurrentOdometer(req.getOdometer());
+
+            BigDecimal tankCapacity = vehicle.getTankCapacity();
+            if (req.isFullTank()) {
+                vehicle.setCurrentFuelLevel(tankCapacity);
+            } else {
+                BigDecimal current = vehicle.getCurrentFuelLevel() != null
+                        ? vehicle.getCurrentFuelLevel() : BigDecimal.ZERO;
+                vehicle.setCurrentFuelLevel(current.add(req.getLitresFilled()).min(tankCapacity));
+            }
+
             vehicleRepository.save(vehicle);
         }
 
@@ -135,11 +145,17 @@ public class FuelLogService {
 
         double tankCapacity = vehicle.getTankCapacity().doubleValue();
         double efficiency   = vehicle.getAvgEfficiency().doubleValue();
-        long   daysSince    = ChronoUnit.DAYS.between(lastLog.getLogDate().toLocalDate(), LocalDate.now());
         double dailyKm      = computeDailyKmEstimate(user.getId());
-        double fuelUsed     = (daysSince * dailyKm) / efficiency;
-        double remaining    = Math.max(0,
-            (lastLog.isFullTank() ? tankCapacity : lastLog.getLitresFilled().doubleValue()) - fuelUsed);
+
+        double remaining;
+        if (vehicle.getCurrentFuelLevel() != null) {
+            remaining = Math.min(vehicle.getCurrentFuelLevel().doubleValue(), tankCapacity);
+        } else {
+            long daysSince = ChronoUnit.DAYS.between(lastLog.getLogDate().toLocalDate(), LocalDate.now());
+            double fuelUsed = (daysSince * dailyKm) / efficiency;
+            remaining = Math.max(0,
+                (lastLog.isFullTank() ? tankCapacity : lastLog.getLitresFilled().doubleValue()) - fuelUsed);
+        }
         double remainPct    = (remaining / tankCapacity) * 100;
         double remainKm     = remaining * efficiency;
         double daysOfRange  = dailyKm > 0 ? remainKm / dailyKm : 0;

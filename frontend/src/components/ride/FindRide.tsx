@@ -15,7 +15,7 @@ import {
 interface Coords { lat: number; lng: number; }
 interface Place { label: string; lat: number; lng: number; }
 
-const CHIPS = CAMPUS_LOCATIONS.slice(0, 5);
+const CHIPS = CAMPUS_LOCATIONS;
 
 function fmtTime(iso?: string) {
   if (!iso) return '';

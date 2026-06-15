@@ -11,12 +11,11 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, Link } from 'expo-router';
+import { useRouter, useLocalSearchParams, Link } from 'expo-router';
 import { Droplet, Mail, Lock, Eye, EyeOff, CircleAlert, ArrowRight } from 'lucide-react-native';
 import useAuth from '../../src/hooks/useAuth';
 import Input from '../../src/components/common/Input';
 import PrimaryButton from '../../src/components/common/PrimaryButton';
-import { toast } from '../../src/components/common/Toast';
 import {
   FP_PRIMARY,
   FP_DANGER,
@@ -28,13 +27,13 @@ import {
 
 export default function Login() {
   const router = useRouter();
-  const { login, seedDemo } = useAuth();
+  const { login } = useAuth();
+  const params = useLocalSearchParams<{ email?: string }>();
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(params.email ?? '');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const onLogin = async () => {
@@ -61,25 +60,12 @@ export default function Login() {
     }
   };
 
-  const onDemo = async () => {
+  const onDemo = () => {
     setError(null);
-    setSeeding(true);
-    try {
-      await seedDemo();
-      toast.success('Demo data loaded!');
-      router.replace('/(tabs)/home');
-    } catch (e: any) {
-      setError(
-        e?.response
-          ? 'Could not seed demo data.'
-          : "Can't reach the server to load demo data.",
-      );
-    } finally {
-      setSeeding(false);
-    }
+    router.push('/(auth)/demo-guide');
   };
 
-  const disabled = loading || seeding;
+  const disabled = loading;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -175,10 +161,10 @@ export default function Login() {
               disabled={disabled}
               style={styles.demoBtn}
               accessibilityRole="button"
-              accessibilityLabel={seeding ? 'Loading demo data' : 'Use demo data'}
+              accessibilityLabel="Use demo data"
             >
-              <Text style={styles.demoText}>{seeding ? 'Loading demo…' : 'Use Demo Data'}</Text>
-              {!seeding && <ArrowRight size={14} color={FP_PRIMARY} />}
+              <Text style={styles.demoText}>Use Demo Data</Text>
+              <ArrowRight size={14} color={FP_PRIMARY} />
             </Pressable>
 
             <View style={styles.signupRow}>

@@ -72,16 +72,39 @@ public class MOFArticleParser {
             Rules: If this is NOT a fuel article, return {"isFuelAnnouncement": false, "confidence": 0}
             and every other field must be null. No markdown, no explanation, JSON only.
 
+            For "summary": write 2-3 plain-English sentences for a student driver explaining
+            WHAT changed (which fuel prices went up/down/stayed, by how much) and WHY (the
+            government's stated reason), e.g. "RON95 stays at RM2.05/litre under the BUDI95
+            subsidy programme, unchanged from last week. Diesel rises by 5 sen to RM2.20/litre
+            as the government continues phasing out blanket diesel subsidies. No action needed —
+            just budget an extra few ringgit if you drive a diesel vehicle." Do not just repeat
+            the raw price table; explain it.
+
             Article:
             """;
 
     private static final String IMPACT_SYSTEM =
             "You are a Malaysian fuel cost advisor for everyday drivers. " + JSON_ONLY;
     private static final String IMPACT_USER = """
-            Based on this fuel announcement, explain: 1) impact on drivers, 2) cost implications,
-            3) refueling advice.
+            Based on this fuel price announcement, write a practical impact assessment for a
+            Malaysian university student who commutes ~20km a day (round trip) by car or
+            motorcycle, refuelling roughly once a week.
+
             Return JSON:
             {"impactLevel":"LOW|MEDIUM|HIGH","estimatedCostImpact":"","driverAdvice":"","summary":""}
+
+            Rules:
+            - "summary": 1-2 sentences restating what this means for THIS student in plain English.
+            - "estimatedCostImpact": give a concrete RM figure or range for the change in weekly
+              or monthly fuel spend for a ~20km/day commute (e.g. "About +RM3-5 more per week,
+              or roughly RM15-20 extra a month"). If prices are unchanged, say so explicitly
+              (e.g. "No change to your weekly fuel bill").
+            - "driverAdvice": one concrete, actionable tip (e.g. when to top up, whether to
+              switch fuel grade, whether carpooling now saves more). Avoid generic advice like
+              "drive efficiently" with no numbers.
+            - "impactLevel": LOW if price change is under 3 sen/litre or unchanged, MEDIUM for
+              4-15 sen/litre, HIGH for anything larger or a subsidy/policy change affecting
+              eligibility.
 
             Announcement:
             """;
@@ -173,9 +196,9 @@ public class MOFArticleParser {
     // ── Phase 8: impact analysis agent ──
     private String analyzeImpact(JsonNode extraction) {
         try {
-            String summary = text(extraction, "summary");
-            String basis = (summary != null && !summary.isBlank()) ? summary : extraction.toString();
-            String resp = ollamaService.generate(IMPACT_SYSTEM, IMPACT_USER + basis, 0.2);
+            // Pass the full extraction (prices, price change, reason) so the model has the
+            // numbers it needs to compute a concrete RM cost impact for the student commute.
+            String resp = ollamaService.generate(IMPACT_SYSTEM, IMPACT_USER + extraction.toString(), 0.2);
             String clean = sanitize(resp);
             return parseJson(clean) != null ? clean : null; // store only if valid JSON
         } catch (Exception e) {

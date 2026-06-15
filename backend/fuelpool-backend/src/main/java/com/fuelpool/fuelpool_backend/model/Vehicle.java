@@ -43,6 +43,9 @@ public class Vehicle {
     @Column(nullable = false, precision = 5, scale = 2)
     private BigDecimal avgEfficiency;
 
+    @Column(precision = 5, scale = 2)
+    private BigDecimal currentFuelLevel;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FuelType fuelType;

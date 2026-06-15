@@ -83,16 +83,10 @@ async function logout() {
   setState({ token: null, user: null });
 }
 
-// Seeds the backend demo dataset and signs in as ahmad@utm.my.
+// Seeds the backend demo dataset. Does NOT sign in — the user logs in
+// manually with one of the generated demo accounts (see res.users / res.demoGuide).
 async function seedDemo() {
   const res = await authApi.seedDemo();
-  const token: string | undefined = res.data?.tokens?.['ahmad@utm.my'];
-  if (!token) throw new Error('Seed succeeded but no demo token was returned.');
-  await SecureStore.setItemAsync(TOKEN_KEY, token);
-  setState({
-    token,
-    user: { name: 'Ahmad Razif', email: 'ahmad@utm.my', gender: 'MALE', isDriver: true },
-  });
   return res.data;
 }
 

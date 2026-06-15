@@ -32,7 +32,7 @@ export const authApi = {
   login: (data: { email: string; password: string }) =>
     api.post<AuthResponse>('/auth/login', data),
 
-  // Seeds demo users/rides/eco data; returns { tokens: { 'ahmad@utm.my': '<jwt>', ... } }
+  // Seeds demo users/rides/eco data; returns { users: [...], demoGuide: {...} }
   seedDemo: () =>
     api.post('/demo/seed'),
 
@@ -132,6 +132,10 @@ export const carpoolApi = {
   // Requests
   joinRide: (rideId: number, data: RideJoinRequest) =>
     api.post(`/rides/${rideId}/request`, data),
+
+  // Driver-only: pending requests awaiting accept/reject
+  getPendingRequests: (rideId: number) =>
+    api.get(`/rides/${rideId}/requests`),
 
   acceptRequest: (requestId: number) =>
     api.put(`/ride-requests/${requestId}/accept`),

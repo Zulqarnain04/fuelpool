@@ -10,7 +10,8 @@ import {
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 import { format, parseISO } from 'date-fns';
@@ -41,6 +42,7 @@ import NotificationBanner from '../../src/components/home/NotificationBanner';
 import { checkPendingNotification, markNotificationsSeen, type PendingNotification } from '../../src/utils/notifications';
 import { ecoApi, carpoolApi, fuelApi } from '../../src/services/api';
 import type { DashboardResponse, EcoWeekly, RideSummary } from '../../src/services/api';
+import { DEFAULT_LAT, DEFAULT_LNG } from '../../src/constants';
 import {
   FP_PRIMARY,
   FP_PRIMARY_LIGHT,
@@ -171,19 +173,35 @@ function HomeContent() {
   const [refreshing, setRefreshing] = useState(false);
   const [alertDismissed, setAlertDismissed] = useState(false);
   const [notification, setNotification] = useState<PendingNotification | null>(null);
+  const [userLoc, setUserLoc] = useState<{ lat: number; lng: number } | null>(null);
 
   const fuelAnim = useRef(new Animated.Value(0)).current;
   const alertAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setUserLoc({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+        }
+      } catch {
+        /* ignore — fall back to campus default */
+      }
+    })();
+  }, []);
 
   const load = useCallback(async (isRefresh = false) => {
     if (!isRefresh) setStatus('loading');
     setAlertDismissed(false);
     alertAnim.setValue(1);
     try {
+      const center = userLoc ?? { lat: DEFAULT_LAT, lng: DEFAULT_LNG };
       const [dRes, eRes, rRes, mRes] = await Promise.allSettled([
         ecoApi.getDashboard(),
         ecoApi.getWeeklyStats(0),
-        carpoolApi.getRides({ status: 'OPEN' }),
+        carpoolApi.getRides({ status: 'OPEN', lat: center.lat, lng: center.lng, radius: 5000 }),
         fuelApi.getLatestMOFArticle(),
       ]);
       if (dRes.status !== 'fulfilled') throw dRes.reason;
@@ -218,11 +236,13 @@ function HomeContent() {
     } finally {
       if (isRefresh) setRefreshing(false);
     }
-  }, [alertAnim]);
+  }, [alertAnim, userLoc]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
 
   useEffect(() => {
     if (status === 'default' && dash?.remainingFuelPct != null) {

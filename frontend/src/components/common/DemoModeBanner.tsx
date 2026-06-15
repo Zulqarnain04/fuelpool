@@ -1,5 +1,5 @@
 // src/components/common/DemoModeBanner.tsx
-// Small floating "DEMO MODE" pill shown to the 5 seeded demo accounts.
+// Small floating "DEMO MODE" pill shown to the 24 seeded demo accounts.
 // Mounted once at the app root so it overlays every screen.
 
 import React from 'react';
@@ -11,10 +11,29 @@ import { FP_AI, FP_AI_LIGHT } from '../../constants/colors';
 
 const DEMO_EMAILS = new Set([
   'ahmad@utm.my',
-  'haziq@utm.my',
-  'luqman@utm.my',
   'nurul@utm.my',
+  'haziq@utm.my',
   'siti@utm.my',
+  'luqman@utm.my',
+  'aisyah@utm.my',
+  'farid@utm.my',
+  'meiling@utm.my',
+  'danish@utm.my',
+  'aliya@utm.my',
+  'zulkifli@utm.my',
+  'hannah@utm.my',
+  'arjun@utm.my',
+  'nadia@utm.my',
+  'faiz@utm.my',
+  'syafiqah@utm.my',
+  'razak@utm.my',
+  'weijie@utm.my',
+  'amirul@utm.my',
+  'farah@utm.my',
+  'kavitha@utm.my',
+  'hafiz@utm.my',
+  'izzati@utm.my',
+  'bryan@utm.my',
 ]);
 
 export default function DemoModeBanner() {

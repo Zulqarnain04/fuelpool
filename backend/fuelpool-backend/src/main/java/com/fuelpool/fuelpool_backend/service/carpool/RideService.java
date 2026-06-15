@@ -6,6 +6,7 @@ import com.fuelpool.fuelpool_backend.exception.ResourceNotFoundException;
 import com.fuelpool.fuelpool_backend.model.*;
 import com.fuelpool.fuelpool_backend.repository.*;
 import com.fuelpool.fuelpool_backend.service.eco.CarbonService;
+import com.fuelpool.fuelpool_backend.service.eco.LeaderboardService;
 import com.fuelpool.fuelpool_backend.service.eco.SavingsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class RideService {
     private final RouteService routeService;
     private final CarbonService carbonService;
     private final SavingsService savingsService;
+    private final LeaderboardService leaderboardService;
 
     public Ride createRide(User driver, RidePostRequest req) {
         Vehicle vehicle = vehicleRepository.findById(req.getVehicleId())
@@ -131,6 +133,20 @@ public class RideService {
             savingsService.upsertWeeklyStats(rr.getPassenger(), tp);
         }
 
+        // Deduct the fuel the driver burned for this trip from their vehicle's tank
+        Vehicle vehicle = ride.getVehicle();
+        if (vehicle.getCurrentFuelLevel() != null && vehicle.getAvgEfficiency().doubleValue() > 0) {
+            BigDecimal litresUsed = BigDecimal.valueOf(distKm)
+                    .divide(vehicle.getAvgEfficiency(), 4, RoundingMode.HALF_UP);
+            BigDecimal updatedLevel = vehicle.getCurrentFuelLevel().subtract(litresUsed).max(BigDecimal.ZERO);
+            vehicle.setCurrentFuelLevel(updatedLevel.setScale(2, RoundingMode.HALF_UP));
+            vehicleRepository.save(vehicle);
+        }
+
+        // Update the driver's own eco stats and refresh the community leaderboard
+        savingsService.recordDriverTrip(driver, ride, totalOccupants, distKm);
+        leaderboardService.updateRanksForCurrentWeek();
+
         return ride;
     }
 
@@ -156,6 +172,11 @@ public class RideService {
 
     public List<Ride> listByStatus(Ride.RideStatus status) {
         return rideRepository.findByStatus(status);
+    }
+
+    public List<RideRequest> getPendingRequests(Long rideId, User driver) {
+        findAndVerifyDriver(rideId, driver);
+        return rideRequestRepository.findByRideIdAndStatus(rideId, RideRequest.RequestStatus.PENDING);
     }
 
     public void rateRide(Long rideId, User rater, Long targetUserId, int rating) {
